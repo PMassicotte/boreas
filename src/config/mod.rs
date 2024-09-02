@@ -10,11 +10,9 @@ pub mod time_step;
 pub use error::ConfigError;
 pub use time_step::TimeStep;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct Config {
-    #[serde(deserialize_with = "deserialize_date")]
     start_date: NaiveDate,
-    #[serde(deserialize_with = "deserialize_date")]
     end_date: NaiveDate,
     time_step: TimeStep,
 }
@@ -26,6 +24,34 @@ where
     let date_str = String::deserialize(deserializer)?;
     NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
         .map_err(|e| Error::custom(format!("Invalid date format: {}", e)))
+}
+
+impl<'de> Deserialize<'de> for Config {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct ConfigHelper {
+            #[serde(deserialize_with = "deserialize_date")]
+            start_date: NaiveDate,
+            #[serde(deserialize_with = "deserialize_date")]
+            end_date: NaiveDate,
+            time_step: TimeStep,
+        }
+
+        let helper = ConfigHelper::deserialize(deserializer)?;
+
+        if helper.start_date > helper.end_date {
+            return Err(Error::custom(ConfigError::DateOrder));
+        }
+
+        Ok(Config {
+            start_date: helper.start_date,
+            end_date: helper.end_date,
+            time_step: helper.time_step,
+        })
+    }
 }
 
 impl Config {

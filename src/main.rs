@@ -1,8 +1,10 @@
 mod config;
 mod solar;
 
-// use chrono::Duration;
 use config::Config;
+use std::path::Path;
+
+// use chrono::Duration;
 // use solar::sun_zenithal_angle;
 
 fn main() {
@@ -35,4 +37,5 @@ fn main() {
     //     .iter()
     //     .zip(res.iter())
     //     .for_each(|(time, sza)| println!("{:<20} {:>8.4}", time, sza));
+    //
 }
