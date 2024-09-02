@@ -43,7 +43,7 @@ impl<'de> Deserialize<'de> for Config {
         let helper = ConfigHelper::deserialize(deserializer)?;
 
         if helper.start_date > helper.end_date {
-            return Err(Error::custom(ConfigError::DateOrder));
+            return Err(serde::de::Error::custom(ConfigError::DateOrder));
         }
 
         Ok(Config {
