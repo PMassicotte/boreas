@@ -122,6 +122,7 @@ mod tests {
             config.start_date,
             NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date")
         );
+
         assert_eq!(
             config.end_date,
             NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date")
@@ -139,6 +140,7 @@ mod tests {
         let new_date = config
             .increment_date(NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"))
             .unwrap();
+
         assert_eq!(
             new_date,
             NaiveDate::from_ymd_opt(2023, 1, 2).expect("Invalid date")
@@ -156,6 +158,7 @@ mod tests {
         let new_date = config
             .increment_date(NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"))
             .unwrap();
+
         assert_eq!(
             new_date,
             NaiveDate::from_ymd_opt(2023, 1, 8).expect("Invalid date")
@@ -173,6 +176,7 @@ mod tests {
         let new_date = config
             .increment_date(NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"))
             .unwrap();
+
         assert_eq!(
             new_date,
             NaiveDate::from_ymd_opt(2023, 2, 28).expect("Invalid date")
@@ -188,6 +192,7 @@ mod tests {
         };
 
         let dates: Vec<NaiveDate> = config.collect();
+
         assert_eq!(
             dates,
             vec![
