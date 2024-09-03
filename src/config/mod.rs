@@ -14,7 +14,8 @@ pub use time_step::TimeStep;
 pub struct Config {
     start_date: NaiveDate,
     end_date: NaiveDate,
-    time_step: TimeStep,
+    frequency: TimeStep,
+    hourly_increment: u8,
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
@@ -37,7 +38,8 @@ impl<'de> Deserialize<'de> for Config {
             start_date: NaiveDate,
             #[serde(deserialize_with = "deserialize_date")]
             end_date: NaiveDate,
-            time_step: TimeStep,
+            frequency: TimeStep,
+            hourly_increment: u8,
         }
 
         let helper = ConfigHelper::deserialize(deserializer)?;
@@ -46,10 +48,16 @@ impl<'de> Deserialize<'de> for Config {
             return Err(serde::de::Error::custom(ConfigError::DateOrder));
         }
 
+        let valid_divisors = [1, 2, 3, 4, 6, 8, 12];
+        if !valid_divisors.contains(&helper.hourly_increment) {
+            return Err(serde::de::Error::custom(ConfigError::HourlyIncrement));
+        }
+
         Ok(Config {
             start_date: helper.start_date,
             end_date: helper.end_date,
-            time_step: helper.time_step,
+            frequency: helper.frequency,
+            hourly_increment: helper.hourly_increment,
         })
     }
 }
@@ -66,7 +74,7 @@ impl Config {
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
-        match self.time_step {
+        match self.frequency {
             TimeStep::Daily => Ok(current_date + Duration::days(1)),
             TimeStep::Weekly => Ok(current_date + Duration::weeks(1)),
             TimeStep::Monthly => current_date
@@ -105,18 +113,19 @@ mod tests {
         let mut file = File::create(&file_path).unwrap();
 
         let config_data = r#"
-        {
-            "time_step": "daily",
-            "start_date": "2023-01-01",
-            "end_date": "2023-01-10"
-        }
-        "#;
+    {
+        "start_date": "2023-01-01",
+        "end_date": "2023-01-10",
+        "frequency": "daily",
+        "hourly_increment": 3
+    }
+    "#;
 
         file.write_all(config_data.as_bytes()).unwrap();
 
         let config = Config::from_file(file_path).unwrap();
 
-        assert_eq!(config.time_step, TimeStep::Daily);
+        assert_eq!(config.frequency, TimeStep::Daily);
 
         assert_eq!(
             config.start_date,
@@ -134,7 +143,8 @@ mod tests {
         let config = Config {
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
-            time_step: TimeStep::Daily,
+            frequency: TimeStep::Daily,
+            hourly_increment: 1,
         };
 
         let new_date = config
@@ -152,7 +162,8 @@ mod tests {
         let config = Config {
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
-            time_step: TimeStep::Weekly,
+            frequency: TimeStep::Weekly,
+            hourly_increment: 1,
         };
 
         let new_date = config
@@ -170,7 +181,8 @@ mod tests {
         let config = Config {
             start_date: NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
-            time_step: TimeStep::Monthly,
+            frequency: TimeStep::Monthly,
+            hourly_increment: 1,
         };
 
         let new_date = config
@@ -188,7 +200,8 @@ mod tests {
         let config = Config {
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
-            time_step: TimeStep::Daily,
+            frequency: TimeStep::Daily,
+            hourly_increment: 3,
         };
 
         let dates: Vec<NaiveDate> = config.collect();
