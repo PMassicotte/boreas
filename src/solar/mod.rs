@@ -1,4 +1,5 @@
 // TODO: Redo the calculation based on the excel files:
+// TODO: Use the hourly_increment in the config to generate a sequence of time for a specific date.
 // https://gml.noaa.gov/grad/solcalc/calcdetails.html
 
 use chrono::{Datelike, NaiveDateTime, Timelike};
@@ -8,16 +9,17 @@ use std::f64::consts::PI;
 //     sun_zenithal_angle: f64,
 // }
 
-pub fn sun_zenithal_angle(date: NaiveDateTime, longitude: f64, latitude: f64) -> f64 {
+#[allow(dead_code)]
+pub fn sun_zenithal_angle(date_time: NaiveDateTime, longitude: f64, latitude: f64) -> f64 {
     // Constants
     let days_in_year = 365.25;
     let declination_angle_max = 23.44;
 
     // Convert date to the number of days in the year
-    let day_of_year = date.ordinal() as f64;
+    let day_of_year = date_time.ordinal() as f64;
 
     // Calculate the hour angle
-    let time_of_day = date.num_seconds_from_midnight() as f64 / 3600.0;
+    let time_of_day = date_time.num_seconds_from_midnight() as f64 / 3600.0;
     let solar_time = time_of_day + (4.0 * longitude) / 60.0;
     let hour_angle = 15.0 * (solar_time - 12.0);
 

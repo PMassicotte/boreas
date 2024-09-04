@@ -2,7 +2,7 @@
   "start_date": "2019-01-01",
   "end_date": "2019-03-31",
   "frequency": "weekly",
-  "hourly_increment": 5,
+  "hourly_increment": 4,
   "data": {
     "source": "https://www.example.com/data.csv",
     "format": "csv",

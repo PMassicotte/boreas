@@ -48,8 +48,8 @@ impl<'de> Deserialize<'de> for Config {
             return Err(serde::de::Error::custom(ConfigError::DateOrder));
         }
 
-        let valid_divisors = [1, 2, 3, 4, 6, 8, 12];
-        if !valid_divisors.contains(&helper.hourly_increment) {
+        let valid_timestep = [1, 2, 3, 4, 6, 8, 12];
+        if !valid_timestep.contains(&helper.hourly_increment) {
             return Err(serde::de::Error::custom(ConfigError::HourlyIncrement));
         }
 

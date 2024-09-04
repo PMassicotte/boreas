@@ -3,8 +3,9 @@ mod solar;
 
 use config::Config;
 use std::path::Path;
+mod readers;
 
-// use chrono::Duration;
+use readers::*;
 // use solar::sun_zenithal_angle;
 
 fn main() {
@@ -22,20 +23,13 @@ fn main() {
         println!("{}", date);
     }
 
-    // let start_time = config.start_date().and_hms_opt(0, 0, 0).unwrap();
-    //
-    // let time_vec: Vec<_> = (0..24)
-    //     .map(|h| start_time + Duration::hours(h as i64))
-    //     .collect();
-    //
-    // let res: Vec<f64> = time_vec
-    //     .iter()
-    //     .map(|t| sun_zenithal_angle(*t, 105.0, 40.0))
-    //     .collect();
-    //
-    // time_vec
-    //     .iter()
-    //     .zip(res.iter())
-    //     .for_each(|(time, sza)| println!("{:<20} {:>8.4}", time, sza));
-    //
+    let file_name =
+        Path::new(&"/media/LaCie16TB/work/projects/workshops/ppr/data/sst_st_lawrence_river.tif");
+
+    // Step 2: Create the appropriate reader, will be based on the file extension
+    let reader = readers::create_reader(file_name.to_str().unwrap().to_string()).unwrap();
+
+    // Step 3: Use the reader to read data
+    let data = reader.read_data().unwrap();
+    println!("{}", data);
 }
