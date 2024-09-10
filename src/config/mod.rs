@@ -6,10 +6,12 @@ use serde::Deserializer;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-pub mod error;
-pub mod time_step;
-pub use error::ConfigError;
-pub use time_step::TimeStep;
+
+mod error;
+use error::ConfigError;
+
+mod time_step;
+use time_step::TimeStep;
 
 #[derive(Debug)]
 pub struct Config {
@@ -19,6 +21,8 @@ pub struct Config {
     hourly_increment: u8,
 }
 
+// This function deserializes a Config object from a deserializer, ensuring the dates are valid and
+// in order, and the hourly increment is within an acceptable range.
 impl<'de> Deserialize<'de> for Config {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -54,7 +58,6 @@ impl<'de> Deserialize<'de> for Config {
             return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
-        // Return the Config object
         Ok(Config {
             start_date,
             end_date,
