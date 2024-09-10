@@ -1,10 +1,11 @@
+#![allow(dead_code)]
 use chrono::{Duration, Months, NaiveDate};
 use serde::de::Error;
 use serde::Deserialize;
+use serde::Deserializer;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-
 pub mod error;
 pub mod time_step;
 pub use error::ConfigError;
@@ -18,44 +19,45 @@ pub struct Config {
     hourly_increment: u8,
 }
 
-fn deserialize_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let date_str = String::deserialize(deserializer)?;
-    NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-        .map_err(|e| Error::custom(format!("Invalid date format: {}", e)))
-}
-
 impl<'de> Deserialize<'de> for Config {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
         struct ConfigHelper {
-            #[serde(deserialize_with = "deserialize_date")]
-            start_date: NaiveDate,
-            #[serde(deserialize_with = "deserialize_date")]
-            end_date: NaiveDate,
+            start_date: String,
+            end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
         }
 
+        // Deserialize into the helper struct
         let helper = ConfigHelper::deserialize(deserializer)?;
 
-        if helper.start_date > helper.end_date {
-            return Err(serde::de::Error::custom(ConfigError::DateOrder));
+        // Parse start_date
+        let start_date = NaiveDate::parse_from_str(&helper.start_date, "%Y-%m-%d")
+            .map_err(|e| D::Error::custom(format!("Invalid start_date format: {}", e)))?;
+
+        // Parse end_date
+        let end_date = NaiveDate::parse_from_str(&helper.end_date, "%Y-%m-%d")
+            .map_err(|e| D::Error::custom(format!("Invalid end_date format: {}", e)))?;
+
+        // Ensure start_date is before end_date
+        if start_date > end_date {
+            return Err(D::Error::custom(ConfigError::DateOrder));
         }
 
+        // Validate hourly_increment
         let valid_timestep = [1, 2, 3, 4, 6, 8, 12];
         if !valid_timestep.contains(&helper.hourly_increment) {
-            return Err(serde::de::Error::custom(ConfigError::HourlyIncrement));
+            return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
+        // Return the Config object
         Ok(Config {
-            start_date: helper.start_date,
-            end_date: helper.end_date,
+            start_date,
+            end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
         })
