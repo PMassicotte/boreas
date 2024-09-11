@@ -10,8 +10,8 @@ use std::path::Path;
 mod error;
 use error::ConfigError;
 
-mod time_step;
-use time_step::TimeStep;
+mod timestep;
+use timestep::TimeStep;
 
 #[derive(Debug)]
 pub struct Config {
