@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 use chrono::{Duration, Months, NaiveDate};
+
 use serde::de::Error;
 use serde::Deserialize;
 use serde::Deserializer;
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -72,7 +74,6 @@ impl Config {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
-        // TODO: how to validate that the start_date < end_date
         let config: Config = serde_json::from_reader(reader).map_err(ConfigError::from)?;
 
         Ok(config)

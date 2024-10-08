@@ -5,7 +5,7 @@ pub mod geotiff;
 pub mod nc;
 pub mod types;
 pub mod utils;
-pub mod zarr; // or filetype.rs, depending on your preference
+pub mod zarr;
 
 pub use geotiff::GeoTiffReader;
 pub use nc::NcReader;
