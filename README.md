@@ -9,7 +9,6 @@ Based on my experience, many of the current models for estimating aquatic primar
 - **Modular Design**: The model should be built in a modular way, allowing users to easily extend and modify it.
 
 - **Highly configurable**: The model should be highly configurable, allowing users to customize it to their specific needs.
-
   - **Spatial resolution**: The model should support different spatial resolutions, from global to local scales.
   - **Temporal resolution**: The model should support different temporal resolutions, from daily to annual scales.
   - **Input data**: The model should support different types of input data, such as satellite imagery, in situ measurements, and model outputs.
@@ -23,7 +22,6 @@ Based on my experience, many of the current models for estimating aquatic primar
 ## Using a logger
 
 - https://medium.com/nerd-for-tech/logging-in-rust-e529c241f92e
-
   - https://crates.io/crates/env_logger
   - https://crates.io/crates/log
 
@@ -34,7 +32,6 @@ Based on my experience, many of the current models for estimating aquatic primar
 ### Spatial data
 
 - How to deal with all the different input data formats?
-
   - NetCDF
   - GeoTIFF
   - CSV
