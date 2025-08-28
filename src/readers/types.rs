@@ -16,6 +16,28 @@ pub enum FileError {
     UnknownFileType,
 }
 
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReadError::GeoTiff(msg) => write!(f, "GeoTiff error: {}", msg),
+            ReadError::NetCDF(msg) => write!(f, "NetCDF error: {}", msg),
+            ReadError::Zarr(msg) => write!(f, "Zarr error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {}
+
+impl fmt::Display for FileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FileError::UnknownFileType => write!(f, "Unknown file type"),
+        }
+    }
+}
+
+impl std::error::Error for FileError {}
+
 #[derive(Debug)]
 pub struct Data {
     pub width: u32,
@@ -35,14 +57,14 @@ impl fmt::Display for Data {
             .buffer
             .iter()
             .filter(|&&x| !x.is_nan())
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap_or(&f32::NAN);
 
         let max_value = self
             .buffer
             .iter()
             .filter(|&&x| !x.is_nan())
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap_or(&f32::NAN);
 
         write!(
