@@ -17,7 +17,7 @@ Based on my experience, many of the current models for estimating aquatic primar
 
 - **Low level programming**: The model should be written in a low-level programming language like C or Rust to ensure high performance.
 
-- **Low deoendency**: The model should have as few dependencies as possible to make it easy to install and run.
+- **Low dependency**: The model should have as few dependencies as possible to make it easy to install and run.
 
 - **h3**: The model should use the h3 library for spatial indexing and analysis.
 
