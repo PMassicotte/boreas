@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use chrono::{Duration, Months, NaiveDate};
 
-use serde::de::Error;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde::de::Error;
 
 use std::fs::File;
 use std::io::BufReader;
@@ -15,12 +15,22 @@ use error::ConfigError;
 mod timestep;
 use timestep::TimeStep;
 
+#[derive(Debug, Deserialize)]
+struct Data {
+    source: String,
+    format: String,
+    delimiter: String,
+    date_column: String,
+    value_column: String,
+}
+
 #[derive(Debug)]
 pub struct Config {
     start_date: NaiveDate,
     end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
+    data: Data,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -36,6 +46,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
+            data: Data,
         }
 
         // Deserialize into the helper struct
@@ -65,6 +76,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
+            data: helper.data,
         })
     }
 }
@@ -123,7 +135,14 @@ mod tests {
         "start_date": "2023-01-01",
         "end_date": "2023-01-10",
         "frequency": "daily",
-        "hourly_increment": 3
+        "hourly_increment": 3,
+        "data": {
+            "source": "test.csv",
+            "format": "csv",
+            "delimiter": ",",
+            "date_column": "date",
+            "value_column": "value"
+        }
     }
     "#;
 
@@ -151,6 +170,13 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 1,
+            data: Data {
+                source: "test.csv".to_string(),
+                format: "csv".to_string(),
+                delimiter: ",".to_string(),
+                date_column: "date".to_string(),
+                value_column: "value".to_string(),
+            },
         };
 
         let new_date = config
@@ -170,6 +196,13 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
+            data: Data {
+                source: "test.csv".to_string(),
+                format: "csv".to_string(),
+                delimiter: ",".to_string(),
+                date_column: "date".to_string(),
+                value_column: "value".to_string(),
+            },
         };
 
         let new_date = config
@@ -189,6 +222,13 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
+            data: Data {
+                source: "test.csv".to_string(),
+                format: "csv".to_string(),
+                delimiter: ",".to_string(),
+                date_column: "date".to_string(),
+                value_column: "value".to_string(),
+            },
         };
 
         let new_date = config
@@ -208,6 +248,13 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 3,
+            data: Data {
+                source: "test.csv".to_string(),
+                format: "csv".to_string(),
+                delimiter: ",".to_string(),
+                date_column: "date".to_string(),
+                value_column: "value".to_string(),
+            },
         };
 
         let dates: Vec<NaiveDate> = config.collect();
