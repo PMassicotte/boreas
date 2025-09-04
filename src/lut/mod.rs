@@ -111,11 +111,12 @@ impl Lut {
             ));
         }
 
-        Ok((0..self.wavelengths.len())
-            .map(|wavelength_idx| {
-                self.ed_lut[wavelength_idx][theta_idx][ozone_idx][taucl_idx][albedo_idx]
-            })
-            .collect())
+        let mut result = Vec::with_capacity(self.wavelengths.len());
+        for wavelength_idx in 0..self.wavelengths.len() {
+            result.push(self.ed_lut[wavelength_idx][theta_idx][ozone_idx][taucl_idx][albedo_idx]);
+        }
+
+        Ok(result)
     }
 
     fn get_indice(&self, vec: &[f32], target: f32) -> (usize, f32) {
@@ -126,13 +127,10 @@ impl Lut {
             let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
             (ii, rr.min(1.0))
         } else {
-            let mut ii = 0;
-            for i in 0..vec.len() - 1 {
-                if target >= vec[i] && target < vec[i + 1] {
-                    ii = i;
-                    break;
-                }
-            }
+            let ii = match vec.binary_search_by(|&x| x.partial_cmp(&target).unwrap()) {
+                Ok(i) => i,
+                Err(i) => i.saturating_sub(1),
+            };
             let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
             (ii, rr)
         }
@@ -146,10 +144,11 @@ impl Lut {
         let (itaucl, rtaucl) = self.get_indice(&self.xtaucl, taucl);
         let (ialb, ralb) = self.get_indice(&self.xalb, alb);
 
-        let mut ed_tmp4 = [[[[0.0f32; 2]; 2]; 2]; 83];
-        let mut ed_tmp3 = [[[0.0f32; 2]; 2]; 83];
-        let mut ed_tmp2 = [[0.0f32; 2]; 83];
-        let mut ed = vec![0.0f32; nwl];
+        let ed_tmp4 = &mut [[[[0.0f32; 2]; 2]; 2]; 83];
+        let ed_tmp3 = &mut [[[0.0f32; 2]; 2]; 83];
+        let ed_tmp2 = &mut [[0.0f32; 2]; 83];
+        let mut ed = Vec::with_capacity(nwl);
+        ed.resize(nwl, 0.0);
 
         // Remove the dimension on Surface Albedo
         for i in 0..=1 {
@@ -161,12 +160,31 @@ impl Lut {
                 for k in 0..=1 {
                     let ztaucl = (itaucl + k).min(self.xtaucl.len() - 1);
 
-                    #[allow(clippy::needless_range_loop)]
+                    let albedo_high = (ialb + 1).min(self.xalb.len() - 1);
+                    let blend_factor = 1.0 - ralb;
+
                     for l in 0..nwl {
-                        let albedo_high = (ialb + 1).min(self.xalb.len() - 1);
-                        ed_tmp4[l][i][j][k] = (1.0 - ralb)
-                            * self.ed_lut[l][zthetas][zozone][ztaucl][ialb]
-                            + ralb * self.ed_lut[l][zthetas][zozone][ztaucl][albedo_high];
+                        unsafe {
+                            let val1 = *self
+                                .ed_lut
+                                .get_unchecked(l)
+                                .get_unchecked(zthetas)
+                                .get_unchecked(zozone)
+                                .get_unchecked(ztaucl)
+                                .get_unchecked(ialb);
+                            let val2 = *self
+                                .ed_lut
+                                .get_unchecked(l)
+                                .get_unchecked(zthetas)
+                                .get_unchecked(zozone)
+                                .get_unchecked(ztaucl)
+                                .get_unchecked(albedo_high);
+                            *ed_tmp4
+                                .get_unchecked_mut(l)
+                                .get_unchecked_mut(i)
+                                .get_unchecked_mut(j)
+                                .get_unchecked_mut(k) = blend_factor * val1 + ralb * val2;
+                        }
                     }
                 }
             }
@@ -191,7 +209,11 @@ impl Lut {
 
         // Remove the dimension on sunzenith angle
         for l in 0..nwl {
-            ed[l] = (1.0 - rthetas) * ed_tmp2[l][0] + rthetas * ed_tmp2[l][1];
+            unsafe {
+                *ed.get_unchecked_mut(l) = (1.0 - rthetas)
+                    * ed_tmp2.get_unchecked(l).get_unchecked(0)
+                    + rthetas * ed_tmp2.get_unchecked(l).get_unchecked(1);
+            }
         }
 
         ed
@@ -203,12 +225,12 @@ impl Lut {
 
         let mut ed_inst = Vec::with_capacity(ed_cloud.len());
 
-        for i in 0..ed_cloud.len() {
-            if thetas < 90.0 {
+        if thetas < 90.0 {
+            for i in 0..ed_cloud.len() {
                 ed_inst.push(ed_cloud[i] * cf + ed_clear[i] * (1.0 - cf));
-            } else {
-                ed_inst.push(0.0);
             }
+        } else {
+            ed_inst.resize(ed_cloud.len(), 0.0);
         }
 
         ed_inst
