@@ -117,4 +117,100 @@ impl Lut {
             })
             .collect())
     }
+
+    fn get_indice(&self, vec: &[f32], target: f32) -> (usize, f32) {
+        if target < vec[0] {
+            (0, 0.0)
+        } else if target >= vec[vec.len() - 1] {
+            let ii = vec.len() - 2;
+            let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
+            (ii, rr.min(1.0))
+        } else {
+            let mut ii = 0;
+            for i in 0..vec.len() - 1 {
+                if target >= vec[i] && target < vec[i + 1] {
+                    ii = i;
+                    break;
+                }
+            }
+            let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
+            (ii, rr)
+        }
+    }
+
+    fn interpol_ed0moins(&self, thetas: f32, ozone: f32, taucl: f32, alb: f32) -> Vec<f32> {
+        let nwl = self.wavelengths.len();
+
+        let (ithetas, rthetas) = self.get_indice(&self.xthetas, thetas);
+        let (iozone, rozone) = self.get_indice(&self.xozone, ozone);
+        let (itaucl, rtaucl) = self.get_indice(&self.xtaucl, taucl);
+        let (ialb, ralb) = self.get_indice(&self.xalb, alb);
+
+        let mut ed_tmp4 = [[[[0.0f32; 2]; 2]; 2]; 83];
+        let mut ed_tmp3 = [[[0.0f32; 2]; 2]; 83];
+        let mut ed_tmp2 = [[0.0f32; 2]; 83];
+        let mut ed = vec![0.0f32; nwl];
+
+        // Remove the dimension on Surface Albedo
+        for i in 0..=1 {
+            let zthetas = (ithetas + i).min(self.xthetas.len() - 1);
+
+            for j in 0..=1 {
+                let zozone = (iozone + j).min(self.xozone.len() - 1);
+
+                for k in 0..=1 {
+                    let ztaucl = (itaucl + k).min(self.xtaucl.len() - 1);
+
+                    #[allow(clippy::needless_range_loop)]
+                    for l in 0..nwl {
+                        let albedo_high = (ialb + 1).min(self.xalb.len() - 1);
+                        ed_tmp4[l][i][j][k] = (1.0 - ralb)
+                            * self.ed_lut[l][zthetas][zozone][ztaucl][ialb]
+                            + ralb * self.ed_lut[l][zthetas][zozone][ztaucl][albedo_high];
+                    }
+                }
+            }
+        }
+
+        // Remove the dimension on taucl
+        for i in 0..=1 {
+            for j in 0..=1 {
+                for l in 0..nwl {
+                    ed_tmp3[l][i][j] =
+                        (1.0 - rtaucl) * ed_tmp4[l][i][j][0] + rtaucl * ed_tmp4[l][i][j][1];
+                }
+            }
+        }
+
+        // Remove the dimension on ozone
+        for i in 0..=1 {
+            for l in 0..nwl {
+                ed_tmp2[l][i] = (1.0 - rozone) * ed_tmp3[l][i][0] + rozone * ed_tmp3[l][i][1];
+            }
+        }
+
+        // Remove the dimension on sunzenith angle
+        for l in 0..nwl {
+            ed[l] = (1.0 - rthetas) * ed_tmp2[l][0] + rthetas * ed_tmp2[l][1];
+        }
+
+        ed
+    }
+
+    pub fn ed0moins(&self, thetas: f32, o3: f32, tcl: f32, cf: f32) -> Vec<f32> {
+        let ed_cloud = self.interpol_ed0moins(thetas, o3, tcl, 0.05);
+        let ed_clear = self.interpol_ed0moins(thetas, o3, 0.0, 0.05);
+
+        let mut ed_inst = Vec::with_capacity(ed_cloud.len());
+
+        for i in 0..ed_cloud.len() {
+            if thetas < 90.0 {
+                ed_inst.push(ed_cloud[i] * cf + ed_clear[i] * (1.0 - cf));
+            } else {
+                ed_inst.push(0.0);
+            }
+        }
+
+        ed_inst
+    }
 }
