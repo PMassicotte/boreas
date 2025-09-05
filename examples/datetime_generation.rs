@@ -19,5 +19,6 @@ fn main() {
         println!("  {}: {}", i + 1, datetime);
     }
 
-    println!("{:?}", generator.generate_date_series());
+    let date_series = generator.generate_date_series();
+    println!("{:?}", date_series);
 }
