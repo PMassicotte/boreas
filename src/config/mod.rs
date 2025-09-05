@@ -12,10 +12,10 @@ use std::path::Path;
 mod error;
 use error::ConfigError;
 
-mod timestep;
-use timestep::TimeStep;
+pub mod timestep;
+pub use timestep::TimeStep;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct Data {
     source: String,
     format: String,
@@ -24,7 +24,7 @@ struct Data {
     value_column: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     start_date: NaiveDate,
     end_date: NaiveDate,
@@ -82,6 +82,27 @@ impl<'de> Deserialize<'de> for Config {
 }
 
 impl Config {
+    pub fn new(
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        frequency: TimeStep,
+        hourly_increment: u8,
+    ) -> Self {
+        Self {
+            start_date,
+            end_date,
+            frequency,
+            hourly_increment,
+            data: Data {
+                source: String::new(),
+                format: String::new(),
+                delimiter: String::new(),
+                date_column: String::new(),
+                value_column: String::new(),
+            },
+        }
+    }
+
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Config, ConfigError> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
@@ -89,6 +110,10 @@ impl Config {
         let config: Config = serde_json::from_reader(reader).map_err(ConfigError::from)?;
 
         Ok(config)
+    }
+
+    pub fn hourly_increment(&self) -> u8 {
+        self.hourly_increment
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {

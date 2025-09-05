@@ -269,9 +269,9 @@ impl Lut {
     ///
     /// # Example
     /// ```
-    /// use crate::lut::lookup_table::Lut;
+    /// use boreas::lut::lookup_table::Lut;
     ///
-    /// let lut = Lut::from_file("ed0moins.lut").unwrap();
+    /// let lut = Lut::from_file("./data/Ed0moins_LUT_5nm_v2.dat").unwrap();
     ///
     /// // Clear sky conditions at noon
     /// let ed_clear = lut.ed0moins(30.0, 300.0, 0.0, 0.0, 0.1);
