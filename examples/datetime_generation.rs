@@ -18,4 +18,7 @@ fn main() {
     for (i, datetime) in datetime_series.iter().take(10).enumerate() {
         println!("  {}: {}", i + 1, datetime);
     }
+
+    println!("{:?}", generator.generate_date_series());
+
 }

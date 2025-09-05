@@ -1,4 +1,5 @@
 use crate::config::Config;
+use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 
 pub struct DateTimeGenerator {
@@ -11,21 +12,24 @@ impl DateTimeGenerator {
     }
 
     pub fn generate_datetime_series(&self) -> Vec<NaiveDateTime> {
+
         let hourly_increment = self.config.hourly_increment();
         if hourly_increment == 0 {
             eprintln!("Error: hourly_increment must be greater than 0 to avoid division by zero.");
             return Vec::new();
         }
+
         let mut datetimes = Vec::new();
 
         // Clone config to use as iterator
         let config_iter = self.config.clone();
 
         for date in config_iter {
-            let hours_in_day = 24 / hourly_increment as u32;
+
+            let hours_in_day = 24 / self.config.hourly_increment() as u32;
 
             for hour_step in 0..hours_in_day {
-                let hour = hour_step * hourly_increment as u32;
+                let hour = hour_step * self.config.hourly_increment() as u32;
                 let datetime = date
                     .and_hms_opt(hour, 0, 0)
                     .unwrap_or_else(|| date.and_hms_opt(0, 0, 0).unwrap());
@@ -35,6 +39,14 @@ impl DateTimeGenerator {
 
         datetimes
     }
+
+
+    pub fn generate_date_series(&self) -> Vec<NaiveDate> {
+        let config_iter = self.config.clone();
+
+        config_iter.collect()
+    }
+
 }
 
 #[cfg(test)]
