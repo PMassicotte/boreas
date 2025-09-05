@@ -1,12 +1,11 @@
 mod config;
+mod lut;
 mod readers;
-mod solar;
 
-use chrono::{TimeZone, Utc};
-use std::path::Path;
-
+use chrono::Datelike;
 use config::Config;
-use solar::solar_zenith_angle;
+use lut::Lut;
+use lut::SolarPosition;
 
 fn main() {
     let config = match Config::from_file("./data/config/simple_config.json") {
@@ -19,25 +18,37 @@ fn main() {
 
     println!("{:#?}", config);
 
-    for date in config {
+    // Just a test: take the first data, and make sunpos calcultion every 3 hours
+    for date in config.take(1) {
         println!("{}", date);
+
+        let hours: Vec<f32> = (0..8).map(|i| i as f32 * 3.0).collect();
+
+        hours.iter().for_each(|hour| {
+            let sun_position = SolarPosition::calculate(date.ordinal() as i16, *hour, 45., -50.);
+            println!(
+                "Sun position for {} at {}h: {:#?}",
+                date, hour, sun_position
+            );
+        });
+
+        // This function is a helper, gives the same info on zenith and azumuth, maybe use this
+        // instead of sunpos()
+        // let res2 = sunpos::sunpos_simple(date.ordinal() as i16, hour, 45., -50.);
+        // println!("res2 {:?}", res2);
     }
 
-    let file_name = Path::new(
-        &"/media/LaCie16TB/work/projects/workshops/journee_ppr_ulaval_2024/data/sst_st_lawrence_river.tif",
-    );
-
-    // Step 2: Create the appropriate reader, will be based on the file extension
-    let reader = readers::create_reader(file_name.to_str().unwrap().to_string()).unwrap();
+    let reader = readers::create_reader("./data/sst_st_lawrence_river.tif".to_string()).unwrap();
 
     // Step 3: Use the reader to read data
     let data = reader.read_data().unwrap();
     println!("{}", data);
 
-    // Example: 2024-01-01T12:00:00Z, latitude 40.7128 (NYC), longitude -74.0060 (NYC)
-    let utc_time = Utc.with_ymd_and_hms(2024, 8, 11, 16, 38, 55);
-    let latitude = 40.7128;
-    let longitude = -74.0060;
-    let zenith_angle = solar_zenith_angle(utc_time.unwrap(), latitude, longitude);
-    println!("Solar Zenith Angle: {:.2} degrees", zenith_angle);
+    // lut
+
+    let lut = Lut::from_file("./data/Ed0moins_LUT_5nm_v2.dat").unwrap();
+
+    let ed0 = lut.ed0moins(5.0, 350.0, 16.0, 0.5, 0.05);
+
+    print!("{:?}", ed0);
 }
