@@ -46,7 +46,7 @@ impl Lut {
         }
 
         // Fill the lookup table following C++ order: theta, ozone, taucl, albedo, wavelength
-        let mut ed_lut = [[[[[0.0; 7]; 8]; 10]; 19]; 83];
+        let mut ed_lut = Box::new([[[[[0.0; 7]; 8]; 10]; 19]; 83]);
         let mut idx = 0;
 
         #[allow(clippy::needless_range_loop)]
@@ -71,7 +71,7 @@ impl Lut {
             xtaucl,
             xalb,
             wavelengths,
-            ed_lut: Box::new(ed_lut),
+            ed_lut,
         })
     }
 
@@ -119,21 +119,50 @@ impl Lut {
         Ok(result)
     }
 
-    fn get_indice(&self, vec: &[f32], target: f32) -> (usize, f32) {
-        if target < vec[0] {
-            (0, 0.0)
-        } else if target >= vec[vec.len() - 1] {
-            let ii = vec.len() - 2;
-            let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
-            (ii, rr.min(1.0))
-        } else {
-            let ii = match vec.binary_search_by(|&x| x.partial_cmp(&target).unwrap()) {
-                Ok(i) => i,
-                Err(i) => i.saturating_sub(1),
-            };
-            let rr = (target - vec[ii]) / (vec[ii + 1] - vec[ii]);
-            (ii, rr)
+    #[allow(dead_code)]
+    fn get_lut_value(
+        &self,
+        wavelength: usize,
+        theta: usize,
+        ozone: usize,
+        taucl: usize,
+        albedo: usize,
+    ) -> f32 {
+        self.ed_lut[wavelength][theta][ozone][taucl][albedo]
+    }
+
+    fn get_indice(&self, vec: &[f32], mut target: f32) -> (usize, f32) {
+        // Apply Fortran-style boundary clamping first
+        if vec == self.xthetas && target >= 90.0 {
+            target = 89.99;
+        } else if vec == self.xozone && target >= 550.0 {
+            target = 549.99;
+        } else if vec == self.xtaucl && target >= 64.0 {
+            target = 63.99;
+        } else if vec == self.xalb {
+            if target <= 0.05 {
+                target = 0.051;
+            } else if target >= 0.95 {
+                target = 0.9499;
+            }
         }
+
+        // Fortran-style index finding
+        if target < vec[0] {
+            return (0, 0.0); // Special case: r = 0 when below range
+        }
+
+        // Find bracketing indices using manual search (like Fortran)
+        let mut idx = 0;
+        for i in 0..(vec.len() - 1) {
+            if target >= vec[i] && target < vec[i + 1] {
+                idx = i;
+                break;
+            }
+        }
+
+        let rr = (target - vec[idx]) / (vec[idx + 1] - vec[idx]);
+        (idx, rr)
     }
 
     fn interpol_ed0moins(&self, thetas: f32, ozone: f32, taucl: f32, alb: f32) -> Vec<f32> {
@@ -210,18 +239,24 @@ impl Lut {
         // Remove the dimension on sunzenith angle
         for l in 0..nwl {
             unsafe {
-                *ed.get_unchecked_mut(l) = (1.0 - rthetas)
-                    * ed_tmp2.get_unchecked(l).get_unchecked(0)
+                let mut val = (1.0 - rthetas) * ed_tmp2.get_unchecked(l).get_unchecked(0)
                     + rthetas * ed_tmp2.get_unchecked(l).get_unchecked(1);
+
+                // Fortran-style overflow protection
+                if val > 10000.0 {
+                    val = 0.0;
+                }
+
+                *ed.get_unchecked_mut(l) = val;
             }
         }
 
         ed
     }
 
-    pub fn ed0moins(&self, thetas: f32, o3: f32, tcl: f32, cf: f32) -> Vec<f32> {
-        let ed_cloud = self.interpol_ed0moins(thetas, o3, tcl, 0.05);
-        let ed_clear = self.interpol_ed0moins(thetas, o3, 0.0, 0.05);
+    pub fn ed0moins(&self, thetas: f32, o3: f32, tcl: f32, cf: f32, alb: f32) -> Vec<f32> {
+        let ed_cloud = self.interpol_ed0moins(thetas, o3, tcl, alb);
+        let ed_clear = self.interpol_ed0moins(thetas, o3, 0.0, alb);
 
         let mut ed_inst = Vec::with_capacity(ed_cloud.len());
 
