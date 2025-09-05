@@ -1,5 +1,4 @@
-use boreas::config::Config;
-use boreas::date_gen::DateTimeGenerator;
+use boreas::{config::Config, date_gen::DateTimeGenerator};
 
 fn main() {
     let config = match Config::from_file("./data/config/simple_config.json") {
