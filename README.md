@@ -1,10 +1,10 @@
-# Boreas - Arctic Primary Production Model
-
-[![Cargo Build & Test](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml/badge.svg)](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange)
-
 <p align="center">
   <img src="./logo.svg" alt="Boreas Logo", width="300"/>
 </p>
+
+# Boreas - Arctic Primary Production Model
+
+[![Cargo Build & Test](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml/badge.svg)](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange)
 
 Based on my experience, many of the current models for estimating aquatic primary production in the Arctic are challenging to use, difficult to extend, and often lack thorough documentation. I'm starting to explore the idea of developing a new Open Source model, built from the ground up with a modern tool stack, to provide a more accessible and adaptable solution. This model would aim to support the scientific community in better understanding and managing Arctic ecosystems.
 
