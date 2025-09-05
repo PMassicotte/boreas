@@ -15,87 +15,97 @@ pub struct SolarPosition {
     pub atmospheric_mass: f32,
 }
 
-/// Calculate solar position using the original FORTRAN algorithm
-///
-/// # Arguments
-/// * `jday` - Julian day of year (1-365/366)
-/// * `hour` - Hour in decimal format (0.0-24.0, UTC time)
-/// * `latitude` - Latitude in decimal degrees (-90 to +90)
-/// * `longitude` - Longitude in decimal degrees (-180 to +180)
-///
-/// # Returns
-/// * `SolarPosition` struct with zenith angle and azimuth angle in degrees
-pub fn sunpos(jday: i16, hour: f32, latitude: f32, longitude: f32) -> SolarPosition {
-    // Constants
-    let pi = std::f32::consts::PI;
-    let d2r = pi / 180.0;
-    let r2d = 180.0 / pi;
+impl SolarPosition {
+    /// Calculate solar position using the original FORTRAN algorithm
+    ///
+    /// # Arguments
+    /// * `jday` - Julian day of year (1-365/366)
+    /// * `hour` - Hour in decimal format (0.0-24.0, UTC time)
+    /// * `latitude` - Latitude in decimal degrees (-90 to +90)
+    /// * `longitude` - Longitude in decimal degrees (-180 to +180)
+    ///
+    /// # Returns
+    /// * `SolarPosition` struct with zenith angle and azimuth angle in degrees
+    pub fn calculate(jday: i16, hour: f32, latitude: f32, longitude: f32) -> Self {
+        // Constants
+        let pi = std::f32::consts::PI;
+        let d2r = pi / 180.0;
+        let r2d = 180.0 / pi;
 
-    // Local time meridian (set to 0 for GMT/UTC time, as per original)
-    let ltm = 0;
+        // Local time meridian (set to 0 for GMT/UTC time, as per original)
+        let ltm = 0;
 
-    // Extract hour and minute components
-    let hr = hour as i16;
-    let min = ((hour - hr as f32) * 60.0) as i16;
+        // Extract hour and minute components
+        let hr = hour as i16;
+        let min = ((hour - hr as f32) * 60.0) as i16;
 
-    // Calculate local solar noon
-    let lsn = 12.0 + ((ltm as f32 - longitude) / 15.0);
+        // Calculate local solar noon
+        let lsn = 12.0 + ((ltm as f32 - longitude) / 15.0);
 
-    // Convert latitude to radians
-    let latrad = latitude * d2r;
+        // Convert latitude to radians
+        let latrad = latitude * d2r;
 
-    // Calculate solar declination (angle of sun relative to equatorial plane)
-    let decrad = 23.45 * d2r * (d2r * 360.0 * (284.0 + jday as f32) / 365.0).sin();
-    let decdeg = decrad * r2d;
+        // Calculate solar declination (angle of sun relative to equatorial plane)
+        let decrad = 23.45 * d2r * (d2r * 360.0 * (284.0 + jday as f32) / 365.0).sin();
+        let decdeg = decrad * r2d;
 
-    // Convert hour to floating point
-    let ha = hr as f32 + (min as f32 / 60.0);
+        // Convert hour to floating point
+        let ha = hr as f32 + (min as f32 / 60.0);
 
-    // Calculate hour angle in minutes, then convert to radians
-    let hangle = (lsn - ha) * 60.0;
-    let harad = hangle * 0.0043633; // This equals hangle * (15.0 * d2r) / 60.0
+        // Calculate hour angle in minutes, then convert to radians
+        let hangle = (lsn - ha) * 60.0;
+        let harad = hangle * 0.0043633; // This equals hangle * (15.0 * d2r) / 60.0
 
-    // Calculate solar altitude angle
-    let saltrad =
-        ((latrad.sin() * decrad.sin()) + (latrad.cos() * decrad.cos() * harad.cos())).asin();
+        // Calculate solar altitude angle
+        let saltrad =
+            ((latrad.sin() * decrad.sin()) + (latrad.cos() * decrad.cos() * harad.cos())).asin();
 
-    let saltdeg = saltrad * r2d;
+        let saltdeg = saltrad * r2d;
 
-    // Calculate solar azimuth angle
-    let sazirad = (decrad.cos() * harad.sin() / saltrad.cos()).asin();
-    let sazideg = sazirad * r2d;
+        // Calculate solar azimuth angle
+        let sazirad = (decrad.cos() * harad.sin() / saltrad.cos()).asin();
+        let sazideg = sazirad * r2d;
 
-    // Calculate zenith angle and atmospheric mass
-    let (szendeg, _szenrad, mass) = if saltdeg < 0.0 || saltrad > 180.0 {
-        // Sun is below horizon
-        (90.0, 90.0 * d2r, 1229_f32.sqrt())
-    } else {
-        // Sun is above horizon
-        let szendeg = 90.0 - saltdeg;
-        let szenrad = szendeg * d2r;
-        let mass = (1229.0 + (614.0 * saltrad.sin()).powi(2)).sqrt() - (614.0 * saltrad.sin());
-        (szendeg, szenrad, mass)
-    };
+        // Calculate zenith angle and atmospheric mass
+        let (szendeg, _szenrad, mass) = if saltdeg < 0.0 || saltrad > 180.0 {
+            // Sun is below horizon
+            (90.0, 90.0 * d2r, 1229_f32.sqrt())
+        } else {
+            // Sun is above horizon
+            let szendeg = 90.0 - saltdeg;
+            let szenrad = szendeg * d2r;
+            let mass = (1229.0 + (614.0 * saltrad.sin()).powi(2)).sqrt() - (614.0 * saltrad.sin());
+            (szendeg, szenrad, mass)
+        };
 
-    // Calculate base transmittance (not used in return but calculated in original)
-    let _tbbase = (-0.65 * mass).exp() + (-0.09 * mass).exp();
+        // Calculate base transmittance (not used in return but calculated in original)
+        let _tbbase = (-0.65 * mass).exp() + (-0.09 * mass).exp();
 
-    SolarPosition {
-        zenith_angle_deg: szendeg,
-        azimuth_angle_deg: sazideg,
-        altitude_angle_deg: saltdeg,
-        declination_deg: decdeg,
-        local_solar_noon: lsn,
-        hour_angle_deg: hangle / 60.0 * 15.0, // Convert back to degrees
-        atmospheric_mass: mass,
+        SolarPosition {
+            zenith_angle_deg: szendeg,
+            azimuth_angle_deg: sazideg,
+            altitude_angle_deg: saltdeg,
+            declination_deg: decdeg,
+            local_solar_noon: lsn,
+            hour_angle_deg: hangle / 60.0 * 15.0, // Convert back to degrees
+            atmospheric_mass: mass,
+        }
     }
-}
 
-/// Convenience function that returns only zenith and azimuth angles
-/// matching the original FORTRAN subroutine signature
-pub fn sunpos_simple(jday: i16, hour: f32, latitude: f32, longitude: f32) -> (f32, f32) {
-    let pos = sunpos(jday, hour, latitude, longitude);
-    (pos.zenith_angle_deg, pos.azimuth_angle_deg)
+    /// Convenience method that returns only zenith and azimuth angles
+    /// matching the original FORTRAN subroutine signature
+    #[allow(dead_code)]
+    pub fn zenith_azimuth(&self) -> (f32, f32) {
+        (self.zenith_angle_deg, self.azimuth_angle_deg)
+    }
+
+    /// Convenience function that returns only zenith and azimuth angles
+    /// matching the original FORTRAN subroutine signature
+    #[allow(dead_code)]
+    pub fn simple(jday: i16, hour: f32, latitude: f32, longitude: f32) -> (f32, f32) {
+        let pos = Self::calculate(jday, hour, latitude, longitude);
+        pos.zenith_azimuth()
+    }
 }
 
 #[cfg(test)]
@@ -105,7 +115,7 @@ mod tests {
     #[test]
     fn test_sunpos_main_example() {
         // Test case matching the main.rs example
-        let pos = sunpos(100, 12.0, 45.0, -75.0);
+        let pos = SolarPosition::calculate(100, 12.0, 45.0, -75.0);
 
         // These values should match the Fortran output exactly
         assert!(
@@ -128,7 +138,7 @@ mod tests {
     #[test]
     fn test_sunpos_noon() {
         // Test at solar noon, summer solstice, 45N latitude
-        let pos = sunpos(172, 12.0, 45.0, 0.0); // Day 172 ≈ June 21
+        let pos = SolarPosition::calculate(172, 12.0, 45.0, 0.0); // Day 172 ≈ June 21
 
         // At solar noon, zenith angle should be minimal
         // At 45N on summer solstice, sun zenith ≈ 21.55 degrees
@@ -144,7 +154,7 @@ mod tests {
     #[test]
     fn test_sunpos_winter() {
         // Test at winter solstice
-        let pos = sunpos(355, 12.0, 45.0, 0.0); // Day 355 ≈ December 21
+        let pos = SolarPosition::calculate(355, 12.0, 45.0, 0.0); // Day 355 ≈ December 21
 
         // At 45N on winter solstice, sun zenith should be much higher
         assert!(pos.zenith_angle_deg > 60.0);
@@ -156,7 +166,7 @@ mod tests {
     #[test]
     fn test_sunpos_equator_equinox() {
         // Test at equator during equinox
-        let pos = sunpos(80, 12.0, 0.0, 0.0); // Day 80 ≈ March 21 (vernal equinox)
+        let pos = SolarPosition::calculate(80, 12.0, 0.0, 0.0); // Day 80 ≈ March 21 (vernal equinox)
 
         // At equator on equinox at solar noon, sun should be nearly overhead
         assert!(
@@ -174,7 +184,7 @@ mod tests {
     #[test]
     fn test_sunpos_arctic_summer() {
         // Test at high latitude during summer
-        let pos = sunpos(172, 12.0, 70.0, 0.0); // 70°N, summer solstice
+        let pos = SolarPosition::calculate(172, 12.0, 70.0, 0.0); // 70°N, summer solstice
 
         // At high latitude in summer, sun should be visible (altitude > 0)
         assert!(
@@ -189,8 +199,8 @@ mod tests {
     #[test]
     fn test_sunpos_different_longitudes() {
         // Test same time at different longitudes
-        let pos_west = sunpos(100, 12.0, 45.0, -120.0); // West coast US
-        let pos_east = sunpos(100, 12.0, 45.0, -75.0); // East coast US
+        let pos_west = SolarPosition::calculate(100, 12.0, 45.0, -120.0); // West coast US
+        let pos_east = SolarPosition::calculate(100, 12.0, 45.0, -75.0); // East coast US
 
         // Solar angles should be different due to longitude difference
         assert!(
@@ -202,7 +212,7 @@ mod tests {
     #[test]
     fn test_sunpos_below_horizon() {
         // Test during night time
-        let pos = sunpos(172, 0.0, 45.0, 0.0); // Midnight
+        let pos = SolarPosition::calculate(172, 0.0, 45.0, 0.0); // Midnight
 
         // Should return valid range for all angles
         assert!(pos.zenith_angle_deg >= 0.0 && pos.zenith_angle_deg <= 180.0);
@@ -212,8 +222,8 @@ mod tests {
     #[test]
     fn test_sunpos_extreme_latitudes() {
         // Test at extreme latitudes
-        let pos_north = sunpos(172, 12.0, 89.0, 0.0); // Near North Pole
-        let pos_south = sunpos(172, 12.0, -89.0, 0.0); // Near South Pole
+        let pos_north = SolarPosition::calculate(172, 12.0, 89.0, 0.0); // Near North Pole
+        let pos_south = SolarPosition::calculate(172, 12.0, -89.0, 0.0); // Near South Pole
 
         // Results should be valid
         assert!(pos_north.zenith_angle_deg >= 0.0 && pos_north.zenith_angle_deg <= 180.0);
@@ -226,8 +236,8 @@ mod tests {
     #[test]
     fn test_sunpos_atmospheric_mass() {
         // Test atmospheric mass calculation
-        let pos_overhead = sunpos(172, 12.0, 23.45, 0.0); // Sun nearly overhead
-        let pos_horizon = sunpos(172, 6.0, 45.0, 0.0); // Sun near horizon
+        let pos_overhead = SolarPosition::calculate(172, 12.0, 23.45, 0.0); // Sun nearly overhead
+        let pos_horizon = SolarPosition::calculate(172, 6.0, 45.0, 0.0); // Sun near horizon
 
         // Atmospheric mass should be higher when sun is lower (higher zenith angle)
         assert!(
@@ -243,8 +253,8 @@ mod tests {
     #[test]
     fn test_sunpos_simple_wrapper() {
         // Test the convenience function
-        let (zenith, azimuth) = sunpos_simple(100, 12.0, 45.0, -75.0);
-        let full_pos = sunpos(100, 12.0, 45.0, -75.0);
+        let (zenith, azimuth) = SolarPosition::simple(100, 12.0, 45.0, -75.0);
+        let full_pos = SolarPosition::calculate(100, 12.0, 45.0, -75.0);
 
         // Should return same values as full function
         assert!((zenith - full_pos.zenith_angle_deg).abs() < 0.001);
@@ -258,7 +268,7 @@ mod tests {
         let mut max_dec = f32::MIN;
 
         for day in (1..365).step_by(30) {
-            let pos = sunpos(day, 12.0, 0.0, 0.0);
+            let pos = SolarPosition::calculate(day, 12.0, 0.0, 0.0);
             min_dec = min_dec.min(pos.declination_deg);
             max_dec = max_dec.max(pos.declination_deg);
         }
