@@ -254,6 +254,33 @@ impl Lut {
         ed
     }
 
+    /// Computes the downward irradiance (Ed0-) for given atmospheric conditions.
+    ///
+    /// # Parameters
+    /// - `thetas`: Solar zenith angle in degrees (0-90)
+    /// - `o3`: Ozone column in DU (100-550)
+    /// - `tcl`: Cloud optical thickness (0-64)
+    /// - `cf`: Cloud fraction (0-1)
+    /// - `alb`: Surface albedo (0.05-0.95)
+    ///
+    /// # Returns
+    /// Vector of Ed0- values for all wavelengths (290-700nm in 5nm steps)
+    ///
+    /// # Example
+    /// ```
+    /// use crate::lut::lookup_table::Lut;
+    ///
+    /// let lut = Lut::from_file("ed0moins.lut").unwrap();
+    ///
+    /// // Clear sky conditions at noon
+    /// let ed_clear = lut.ed0moins(30.0, 300.0, 0.0, 0.0, 0.1);
+    ///
+    /// // Partly cloudy conditions
+    /// let ed_cloudy = lut.ed0moins(45.0, 350.0, 16.0, 0.5, 0.2);
+    ///
+    /// // Print Ed0- at 400nm (wavelength index 22)
+    /// println!("Ed0- at 400nm: {:.4}", ed_cloudy[22]);
+    /// ```
     pub fn ed0moins(&self, thetas: f32, o3: f32, tcl: f32, cf: f32, alb: f32) -> Vec<f32> {
         let ed_cloud = self.interpol_ed0moins(thetas, o3, tcl, alb);
         let ed_clear = self.interpol_ed0moins(thetas, o3, 0.0, alb);
@@ -271,4 +298,3 @@ impl Lut {
         ed_inst
     }
 }
-

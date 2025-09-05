@@ -1,12 +1,9 @@
 mod config;
 mod readers;
-mod solar;
 
-use chrono::{TimeZone, Utc};
 use std::path::Path;
 
 use config::Config;
-use solar::solar_zenith_angle;
 
 fn main() {
     let config = match Config::from_file("./data/config/simple_config.json") {
