@@ -20,5 +20,4 @@ fn main() {
     }
 
     println!("{:?}", generator.generate_date_series());
-
 }

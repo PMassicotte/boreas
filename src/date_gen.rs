@@ -12,7 +12,6 @@ impl DateTimeGenerator {
     }
 
     pub fn generate_datetime_series(&self) -> Vec<NaiveDateTime> {
-
         let hourly_increment = self.config.hourly_increment();
         if hourly_increment == 0 {
             eprintln!("Error: hourly_increment must be greater than 0 to avoid division by zero.");
@@ -25,7 +24,6 @@ impl DateTimeGenerator {
         let config_iter = self.config.clone();
 
         for date in config_iter {
-
             let hours_in_day = 24 / self.config.hourly_increment() as u32;
 
             for hour_step in 0..hours_in_day {
@@ -40,13 +38,11 @@ impl DateTimeGenerator {
         datetimes
     }
 
-
     pub fn generate_date_series(&self) -> Vec<NaiveDate> {
         let config_iter = self.config.clone();
 
         config_iter.collect()
     }
-
 }
 
 #[cfg(test)]
