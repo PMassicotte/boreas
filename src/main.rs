@@ -6,7 +6,6 @@ use chrono::Datelike;
 use config::Config;
 use lut::Lut;
 use lut::sunpos;
-use std::path::Path;
 
 fn main() {
     let config = match Config::from_file("./data/config/simple_config.json") {
@@ -36,8 +35,7 @@ fn main() {
         println!("res2 {:?}", res2);
     }
 
-    let file_name = Path::new(&"./data/sst_st_lawrence_river.tif");
-    let reader = readers::create_reader(file_name.to_str().unwrap().to_string()).unwrap();
+    let reader = readers::create_reader("./data/sst_st_lawrence_river.tif".to_string()).unwrap();
 
     // Step 3: Use the reader to read data
     let data = reader.read_data().unwrap();
