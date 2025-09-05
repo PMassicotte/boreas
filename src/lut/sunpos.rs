@@ -3,6 +3,7 @@
 /// Rust implementation of the FORTRAN sunpos subroutine
 /// Calculates solar zenith angle and azimuth angle for given time and location
 /// Result struct containing solar position calculations
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SolarPosition {
     pub zenith_angle_deg: f32,
@@ -65,7 +66,7 @@ pub fn sunpos(jday: i16, hour: f32, latitude: f32, longitude: f32) -> SolarPosit
     let sazideg = sazirad * r2d;
 
     // Calculate zenith angle and atmospheric mass
-    let (szendeg, szenrad, mass) = if saltdeg < 0.0 || saltrad > 180.0 {
+    let (szendeg, _szenrad, mass) = if saltdeg < 0.0 || saltrad > 180.0 {
         // Sun is below horizon
         (90.0, 90.0 * d2r, 1229_f32.sqrt())
     } else {
@@ -105,14 +106,23 @@ mod tests {
     fn test_sunpos_main_example() {
         // Test case matching the main.rs example
         let pos = sunpos(100, 12.0, 45.0, -75.0);
-        
+
         // These values should match the Fortran output exactly
-        assert!((pos.zenith_angle_deg - 74.09).abs() < 0.01, 
-                "Expected zenith ~74.09°, got {:.2}°", pos.zenith_angle_deg);
-        assert!((pos.azimuth_angle_deg - 84.71).abs() < 0.01,
-                "Expected azimuth ~84.71°, got {:.2}°", pos.azimuth_angle_deg);
-        assert!((pos.altitude_angle_deg - 15.91).abs() < 0.01,
-                "Expected altitude ~15.91°, got {:.2}°", pos.altitude_angle_deg);
+        assert!(
+            (pos.zenith_angle_deg - 74.09).abs() < 0.01,
+            "Expected zenith ~74.09°, got {:.2}°",
+            pos.zenith_angle_deg
+        );
+        assert!(
+            (pos.azimuth_angle_deg - 84.71).abs() < 0.01,
+            "Expected azimuth ~84.71°, got {:.2}°",
+            pos.azimuth_angle_deg
+        );
+        assert!(
+            (pos.altitude_angle_deg - 15.91).abs() < 0.01,
+            "Expected altitude ~15.91°, got {:.2}°",
+            pos.altitude_angle_deg
+        );
     }
 
     #[test]
@@ -126,7 +136,7 @@ mod tests {
 
         // Azimuth should be close to 0 (due south) at solar noon
         assert!(pos.azimuth_angle_deg.abs() < 5.0);
-        
+
         // Altitude + zenith should equal 90 degrees
         assert!((pos.altitude_angle_deg + pos.zenith_angle_deg - 90.0).abs() < 0.01);
     }
@@ -138,7 +148,7 @@ mod tests {
 
         // At 45N on winter solstice, sun zenith should be much higher
         assert!(pos.zenith_angle_deg > 60.0);
-        
+
         // Declination should be negative (southern hemisphere favored)
         assert!(pos.declination_deg < 0.0);
     }
@@ -147,22 +157,31 @@ mod tests {
     fn test_sunpos_equator_equinox() {
         // Test at equator during equinox
         let pos = sunpos(80, 12.0, 0.0, 0.0); // Day 80 ≈ March 21 (vernal equinox)
-        
+
         // At equator on equinox at solar noon, sun should be nearly overhead
-        assert!(pos.zenith_angle_deg < 5.0, "Zenith angle should be very small at equator/equinox");
-        
+        assert!(
+            pos.zenith_angle_deg < 5.0,
+            "Zenith angle should be very small at equator/equinox"
+        );
+
         // Declination should be close to 0 at equinox
-        assert!(pos.declination_deg.abs() < 5.0, "Declination should be near 0° at equinox");
+        assert!(
+            pos.declination_deg.abs() < 5.0,
+            "Declination should be near 0° at equinox"
+        );
     }
 
     #[test]
     fn test_sunpos_arctic_summer() {
         // Test at high latitude during summer
         let pos = sunpos(172, 12.0, 70.0, 0.0); // 70°N, summer solstice
-        
+
         // At high latitude in summer, sun should be visible (altitude > 0)
-        assert!(pos.altitude_angle_deg > 0.0, "Sun should be above horizon in arctic summer");
-        
+        assert!(
+            pos.altitude_angle_deg > 0.0,
+            "Sun should be above horizon in arctic summer"
+        );
+
         // Zenith angle should be less than 90° (sun visible)
         assert!(pos.zenith_angle_deg < 90.0);
     }
@@ -171,11 +190,13 @@ mod tests {
     fn test_sunpos_different_longitudes() {
         // Test same time at different longitudes
         let pos_west = sunpos(100, 12.0, 45.0, -120.0); // West coast US
-        let pos_east = sunpos(100, 12.0, 45.0, -75.0);  // East coast US
-        
+        let pos_east = sunpos(100, 12.0, 45.0, -75.0); // East coast US
+
         // Solar angles should be different due to longitude difference
-        assert!((pos_west.zenith_angle_deg - pos_east.zenith_angle_deg).abs() > 5.0,
-                "Different longitudes should give different solar angles");
+        assert!(
+            (pos_west.zenith_angle_deg - pos_east.zenith_angle_deg).abs() > 5.0,
+            "Different longitudes should give different solar angles"
+        );
     }
 
     #[test]
@@ -191,13 +212,13 @@ mod tests {
     #[test]
     fn test_sunpos_extreme_latitudes() {
         // Test at extreme latitudes
-        let pos_north = sunpos(172, 12.0, 89.0, 0.0);  // Near North Pole
+        let pos_north = sunpos(172, 12.0, 89.0, 0.0); // Near North Pole
         let pos_south = sunpos(172, 12.0, -89.0, 0.0); // Near South Pole
-        
+
         // Results should be valid
         assert!(pos_north.zenith_angle_deg >= 0.0 && pos_north.zenith_angle_deg <= 180.0);
         assert!(pos_south.zenith_angle_deg >= 0.0 && pos_south.zenith_angle_deg <= 180.0);
-        
+
         // In summer, North Pole should have lower zenith angle than South Pole
         assert!(pos_north.zenith_angle_deg < pos_south.zenith_angle_deg);
     }
@@ -206,12 +227,14 @@ mod tests {
     fn test_sunpos_atmospheric_mass() {
         // Test atmospheric mass calculation
         let pos_overhead = sunpos(172, 12.0, 23.45, 0.0); // Sun nearly overhead
-        let pos_horizon = sunpos(172, 6.0, 45.0, 0.0);    // Sun near horizon
-        
+        let pos_horizon = sunpos(172, 6.0, 45.0, 0.0); // Sun near horizon
+
         // Atmospheric mass should be higher when sun is lower (higher zenith angle)
-        assert!(pos_horizon.atmospheric_mass > pos_overhead.atmospheric_mass,
-                "Atmospheric mass should be higher near horizon");
-        
+        assert!(
+            pos_horizon.atmospheric_mass > pos_overhead.atmospheric_mass,
+            "Atmospheric mass should be higher near horizon"
+        );
+
         // Atmospheric mass should be reasonable (> 1 for any sun position)
         assert!(pos_overhead.atmospheric_mass >= 1.0);
         assert!(pos_horizon.atmospheric_mass >= 1.0);
@@ -222,7 +245,7 @@ mod tests {
         // Test the convenience function
         let (zenith, azimuth) = sunpos_simple(100, 12.0, 45.0, -75.0);
         let full_pos = sunpos(100, 12.0, 45.0, -75.0);
-        
+
         // Should return same values as full function
         assert!((zenith - full_pos.zenith_angle_deg).abs() < 0.001);
         assert!((azimuth - full_pos.azimuth_angle_deg).abs() < 0.001);
@@ -233,16 +256,21 @@ mod tests {
         // Test declination throughout the year
         let mut min_dec = f32::MAX;
         let mut max_dec = f32::MIN;
-        
+
         for day in (1..365).step_by(30) {
             let pos = sunpos(day, 12.0, 0.0, 0.0);
             min_dec = min_dec.min(pos.declination_deg);
             max_dec = max_dec.max(pos.declination_deg);
         }
-        
+
         // Declination should range approximately ±23.45° throughout year
-        assert!(min_dec < -20.0 && min_dec > -25.0, "Min declination should be ~-23.45°");
-        assert!(max_dec > 20.0 && max_dec < 25.0, "Max declination should be ~+23.45°");
+        assert!(
+            min_dec < -20.0 && min_dec > -25.0,
+            "Min declination should be ~-23.45°"
+        );
+        assert!(
+            max_dec > 20.0 && max_dec < 25.0,
+            "Max declination should be ~+23.45°"
+        );
     }
 }
-

@@ -2,11 +2,11 @@ mod config;
 mod lut;
 mod readers;
 
-use lut::Lut;
-
-use std::path::Path;
-
+use chrono::Datelike;
 use config::Config;
+use lut::Lut;
+use lut::sunpos;
+use std::path::Path;
 
 fn main() {
     let config = match Config::from_file("./data/config/simple_config.json") {
@@ -21,6 +21,19 @@ fn main() {
 
     for date in config {
         println!("{}", date);
+
+        // Use sunpos with the current date
+        let hour = 12.0;
+        let sun_position = sunpos(date.ordinal() as i16, hour, 45., -50.);
+        println!(
+            "Sun position for {} at {}h: {:#?}",
+            date, hour, sun_position
+        );
+
+        // This function is a helper, gives the same info on zenith and azumuth, maybe use this
+        // instead of sunpos()
+        let res2 = sunpos::sunpos_simple(date.ordinal() as i16, hour, 45., -50.);
+        println!("res2 {:?}", res2);
     }
 
     let file_name = Path::new(&"./data/sst_st_lawrence_river.tif");

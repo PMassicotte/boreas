@@ -15,6 +15,7 @@ pub struct Lut {
     ed_lut: LutArray,
 }
 
+#[allow(dead_code)]
 impl Lut {
     /// Creates the 5 vectors for LUT interpolation dimensions:
     /// 1. Wavelength = 290 : 700 : 5
