@@ -1,6 +1,6 @@
 # Boreas - Arctic Primary Production Model
 
-[![Cargo Build & Test](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml/badge.svg)](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml)
+[![Cargo Build & Test](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml/badge.svg)](https://github.com/PMassicotte/boreas/actions/workflows/rust.yml) ![Experimental](https://img.shields.io/badge/status-experimental-orange)
 
 <p align="center">
   <img src="./logo.svg" alt="Boreas Logo", width="300"/>
