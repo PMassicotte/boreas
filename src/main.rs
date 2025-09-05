@@ -1,5 +1,8 @@
 mod config;
+mod lut;
 mod readers;
+
+use lut::Lut;
 
 use std::path::Path;
 
@@ -20,21 +23,18 @@ fn main() {
         println!("{}", date);
     }
 
-    let file_name = Path::new(
-        &"/media/LaCie16TB/work/projects/workshops/journee_ppr_ulaval_2024/data/sst_st_lawrence_river.tif",
-    );
-
-    // Step 2: Create the appropriate reader, will be based on the file extension
+    let file_name = Path::new(&"./data/sst_st_lawrence_river.tif");
     let reader = readers::create_reader(file_name.to_str().unwrap().to_string()).unwrap();
 
     // Step 3: Use the reader to read data
     let data = reader.read_data().unwrap();
     println!("{}", data);
 
-    // Example: 2024-01-01T12:00:00Z, latitude 40.7128 (NYC), longitude -74.0060 (NYC)
-    let utc_time = Utc.with_ymd_and_hms(2024, 8, 11, 16, 38, 55);
-    let latitude = 40.7128;
-    let longitude = -74.0060;
-    let zenith_angle = solar_zenith_angle(utc_time.unwrap(), latitude, longitude);
-    println!("Solar Zenith Angle: {:.2} degrees", zenith_angle);
+    // lut
+
+    let lut = Lut::from_file("./data/Ed0moins_LUT_5nm_v2.dat").unwrap();
+
+    let ed0 = lut.ed0moins(5.0, 350.0, 16.0, 0.5, 0.05);
+
+    print!("{:?}", ed0);
 }
