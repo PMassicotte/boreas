@@ -61,3 +61,7 @@ Based on my experience, many of the current models for estimating aquatic primar
 - phytoplankton physiological parameters (PvsE, ...)
 - light attenuation
 - primary production
+
+## Acknowledgments
+
+The atmospheric LUT data used in this model is provided by Simon Belanger (UQAR) from 2011.

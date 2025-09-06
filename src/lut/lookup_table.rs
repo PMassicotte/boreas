@@ -1,6 +1,11 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+// LUT data provided by Simon Belanger (UQAR) on 2011.
+// Dimensions: Wavelength(83) * TauCld(8) * Ozone(8) * Thetas(19)
+// In row-major order.
+// (See https://en.wikipedia.org/wiki/Row-_and_column-major_order)
+
 // [wavelength][theta][ozone][taucl][albedo]
 type LutArray = Box<[[[[[f32; 7]; 8]; 10]; 19]; 83]>;
 
