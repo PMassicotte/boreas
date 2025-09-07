@@ -20,6 +20,12 @@ pub struct Lut {
     ed_lut: LutArray,
 }
 
+fn blend(a: f32, b: f32, factor: f32) -> f32 {
+    (1.0 - factor) * a + factor * b
+}
+
+const OVERFLOW_PROTECTION: f32 = 10000.0;
+
 #[allow(dead_code)]
 impl Lut {
     /// Creates the 5 vectors for LUT interpolation dimensions:
@@ -179,82 +185,49 @@ impl Lut {
         let (itaucl, rtaucl) = self.get_indice(&self.xtaucl, taucl);
         let (ialb, ralb) = self.get_indice(&self.xalb, alb);
 
-        let ed_tmp4 = &mut [[[[0.0f32; 2]; 2]; 2]; 83];
-        let ed_tmp3 = &mut [[[0.0f32; 2]; 2]; 83];
-        let ed_tmp2 = &mut [[0.0f32; 2]; 83];
-        let mut ed = Vec::with_capacity(nwl);
-        ed.resize(nwl, 0.0);
+        // Temporary arrays for interpolation
+        let mut ed_tmp4 = [[[[0.0f32; 2]; 2]; 2]; 83];
+        let mut ed_tmp3 = [[[0.0f32; 2]; 2]; 83];
+        let mut ed_tmp2 = [[0.0f32; 2]; 83];
+        let mut ed = vec![0.0f32; nwl];
 
-        // Remove the dimension on Surface Albedo
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=1 {
             let zthetas = (ithetas + i).min(self.xthetas.len() - 1);
-
             for j in 0..=1 {
                 let zozone = (iozone + j).min(self.xozone.len() - 1);
-
                 for k in 0..=1 {
                     let ztaucl = (itaucl + k).min(self.xtaucl.len() - 1);
-
                     let albedo_high = (ialb + 1).min(self.xalb.len() - 1);
-                    let blend_factor = 1.0 - ralb;
-
                     for l in 0..nwl {
-                        unsafe {
-                            let val1 = *self
-                                .ed_lut
-                                .get_unchecked(l)
-                                .get_unchecked(zthetas)
-                                .get_unchecked(zozone)
-                                .get_unchecked(ztaucl)
-                                .get_unchecked(ialb);
-                            let val2 = *self
-                                .ed_lut
-                                .get_unchecked(l)
-                                .get_unchecked(zthetas)
-                                .get_unchecked(zozone)
-                                .get_unchecked(ztaucl)
-                                .get_unchecked(albedo_high);
-                            *ed_tmp4
-                                .get_unchecked_mut(l)
-                                .get_unchecked_mut(i)
-                                .get_unchecked_mut(j)
-                                .get_unchecked_mut(k) = blend_factor * val1 + ralb * val2;
-                        }
+                        let val1 = self.ed_lut[l][zthetas][zozone][ztaucl][ialb];
+                        let val2 = self.ed_lut[l][zthetas][zozone][ztaucl][albedo_high];
+                        ed_tmp4[l][i][j][k] = blend(val1, val2, ralb);
                     }
                 }
             }
         }
 
-        // Remove the dimension on taucl
         for i in 0..=1 {
             for j in 0..=1 {
                 for l in 0..nwl {
-                    ed_tmp3[l][i][j] =
-                        (1.0 - rtaucl) * ed_tmp4[l][i][j][0] + rtaucl * ed_tmp4[l][i][j][1];
+                    ed_tmp3[l][i][j] = blend(ed_tmp4[l][i][j][0], ed_tmp4[l][i][j][1], rtaucl);
                 }
             }
         }
 
-        // Remove the dimension on ozone
         for i in 0..=1 {
             for l in 0..nwl {
-                ed_tmp2[l][i] = (1.0 - rozone) * ed_tmp3[l][i][0] + rozone * ed_tmp3[l][i][1];
+                ed_tmp2[l][i] = blend(ed_tmp3[l][i][0], ed_tmp3[l][i][1], rozone);
             }
         }
 
-        // Remove the dimension on sunzenith angle
         for l in 0..nwl {
-            unsafe {
-                let mut val = (1.0 - rthetas) * ed_tmp2.get_unchecked(l).get_unchecked(0)
-                    + rthetas * ed_tmp2.get_unchecked(l).get_unchecked(1);
-
-                // Fortran-style overflow protection
-                if val > 10000.0 {
-                    val = 0.0;
-                }
-
-                *ed.get_unchecked_mut(l) = val;
+            let mut val = blend(ed_tmp2[l][0], ed_tmp2[l][1], rthetas);
+            if val > OVERFLOW_PROTECTION {
+                val = 0.0;
             }
+            ed[l] = val;
         }
 
         ed
