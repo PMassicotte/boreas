@@ -15,7 +15,9 @@ pub struct SatBands {
 impl SatBands {
     pub fn new(sensor: Satellites) -> Self {
         let wavelengths: &'static [u32] = match sensor {
-            Satellites::SeaWiFS => &[412, 443, 490, 555, 670],
+            // Bands 1, 2, 3, 4, 5 and 6
+            Satellites::SeaWiFS => &[412, 443, 490, 510, 555, 670],
+            // Bands 8, 9, 10, 11, 12 and 13
             Satellites::Modis => &[412, 443, 488, 531, 547, 667],
         };
         Self {
