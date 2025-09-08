@@ -64,25 +64,28 @@
 use crate::iop::constants;
 use crate::sat_bands::{SatBands, Satellites};
 use std::collections::BTreeMap;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
 
 /// QAA algorithm results
 #[derive(Debug)]
 pub struct QaaResult {
-    pub wavelengths: Vec<u32>, // Wavelengths [nm]
-    pub rrs: Vec<f64>,         // Below-water reflectance [sr^-1]
-    pub u: Vec<f64>,           // U-ratio [dimensionless]
-    pub a: Vec<f64>,           // Total absorption [m^-1]
-    pub aph: Vec<f64>,         // Phytoplankton absorption [m^-1]
-    pub acdom: Vec<f64>,       // CDOM (detrital+dissolved) absorption [m^-1]
-    pub bb: Vec<f64>,          // Total backscattering [m^-1]
-    pub bbp: Vec<f64>,         // Particulate backscattering [m^-1]
-    pub flags: u8,             // Quality flags [bitfield]
-    pub chla: f64,             // Chla [mg/m^3]
-    pub version: String,       // Algorithm version (e.g., "QAA v6")
-    pub reference_wl: u32,     // Reference wavelength used [nm]
-    pub spectral_slope_y: f64, // Spectral slope Y for bbp
-    pub spectral_slope_s: f64, // Spectral slope S for acdom
-    pub aph_ratio_443: f64,    // aph/a ratio at 443nm for quality assessment
+    wavelengths: Vec<u32>, // Wavelengths [nm]
+    rrs: Vec<f64>,         // Below-water reflectance [sr^-1]
+    u: Vec<f64>,           // U-ratio [dimensionless]
+    a: Vec<f64>,           // Total absorption [m^-1]
+    aph: Vec<f64>,         // Phytoplankton absorption [m^-1]
+    acdom: Vec<f64>,       // CDOM (detrital+dissolved) absorption [m^-1]
+    bb: Vec<f64>,          // Total backscattering [m^-1]
+    bbp: Vec<f64>,         // Particulate backscattering [m^-1]
+    flags: u8,             // Quality flags [bitfield]
+    chla: f64,             // Chla [mg/m^3]
+    version: String,       // Algorithm version (e.g., "QAA v6")
+    reference_wl: u32,     // Reference wavelength used [nm]
+    spectral_slope_y: f64, // Spectral slope Y for bbp
+    spectral_slope_s: f64, // Spectral slope S for acdom
+    aph_ratio_443: f64,    // aph/a ratio at 443nm for quality assessment
 }
 
 enum QAAMessage {
@@ -143,6 +146,73 @@ impl QaaResult {
         }
 
         messages
+    }
+}
+
+impl Display for QaaResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "{} (reference: {} nm) — Flags: 0x{:02X}",
+            self.version, self.reference_wl, self.flags
+        )?;
+
+        // Print any quality messages (if present)
+        let messages = self.get_messages();
+        if !messages.is_empty() {
+            writeln!(f, "Messages:")?;
+            for msg in messages {
+                writeln!(f, "  - {}", msg)?;
+            }
+            writeln!(f)?;
+        }
+
+        // Header for wavelength table
+        writeln!(
+            f,
+            "{:<6} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
+            "Wl(nm)", "Rrs", "a", "aph", "acdom", "bb", "bbp", "u"
+        )?;
+
+        // Ensure we don't panic if vectors lengths differ — iterate up to the min length
+        let n = std::cmp::min(
+            self.wavelengths.len(),
+            *[
+                self.rrs.len(),
+                self.a.len(),
+                self.aph.len(),
+                self.acdom.len(),
+                self.bb.len(),
+                self.bbp.len(),
+                self.u.len(),
+            ]
+            .iter()
+            .min()
+            .unwrap_or(&0),
+        );
+
+        for i in 0..n {
+            writeln!(
+                f,
+                "{:<6} {:>10.6} {:>10.6} {:>10.6} {:>10.6} {:>10.6} {:>10.6} {:>10.6}",
+                self.wavelengths[i],
+                self.rrs[i],
+                self.a[i],
+                self.aph[i],
+                self.acdom[i],
+                self.bb[i],
+                self.bbp[i],
+                self.u[i]
+            )?;
+        }
+
+        writeln!(f)?;
+        writeln!(f, "Chlorophyll-a (mg m^-3): {:.3}", self.chla)?;
+        writeln!(f, "Spectral slope Y (bbp): {:.4}", self.spectral_slope_y)?;
+        writeln!(f, "Spectral slope S (acdom): {:.4}", self.spectral_slope_s)?;
+        writeln!(f, "aph/a ratio at 443 nm: {:.4}", self.aph_ratio_443)?;
+
+        Ok(())
     }
 }
 

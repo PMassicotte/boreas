@@ -13,8 +13,6 @@ fn main() {
     ]);
 
     let result = qaa_v6(&rrs, Satellites::Modis);
-    println!("Chlorophyll-a: {:.3} mg/m3", result.chla);
 
-    println!("{:#?}", result);
-    println!("{:#?}", result.get_messages());
+    println!("{}", result);
 }
