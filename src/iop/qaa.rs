@@ -46,8 +46,8 @@
 //!
 //! ```rust
 //! use std::collections::BTreeMap;
-//! use crate::iop::qaa_v6;
-//! use crate::sat_bands::Satellites;
+//! use boreas::iop::qaa_v6;
+//! use boreas::sat_bands::Satellites;
 //!
 //! let rrs = BTreeMap::from([
 //!     (410, 0.001974),
