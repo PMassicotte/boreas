@@ -85,6 +85,67 @@ pub struct QaaResult {
     pub aph_ratio_443: f64,    // aph/a ratio at 443nm for quality assessment
 }
 
+enum QAAMessage {
+    InvalidData,
+    NegativeBackscattering,
+    DecompositionError,
+    AphCorrectionApplied,
+    NegativeAphValues,
+    ChlorophyllCalculationError,
+    AphRatioForcedMax,
+    BackscatteringLessThanWater,
+}
+
+impl QAAMessage {
+    fn as_str(&self) -> &'static str {
+        match self {
+            QAAMessage::InvalidData => "Invalid data for log calculation (negative Rrs ratios)",
+            QAAMessage::NegativeBackscattering => "Negative particulate backscattering detected",
+            QAAMessage::DecompositionError => "Absorption decomposition error (division by zero)",
+            QAAMessage::AphCorrectionApplied => "aph/a ratio correction applied at 443nm",
+            QAAMessage::NegativeAphValues => "Negative phytoplankton absorption values corrected",
+            QAAMessage::ChlorophyllCalculationError => "Chlorophyll calculation error",
+            QAAMessage::AphRatioForcedMax => "aph/a ratio forced to maximum (0.6)",
+            QAAMessage::BackscatteringLessThanWater => {
+                "Backscattering less than water backscattering"
+            }
+        }
+    }
+}
+
+impl QaaResult {
+    pub fn get_messages(&self) -> Vec<String> {
+        let mut messages = Vec::new();
+
+        if self.flags & 0x01 != 0 {
+            messages.push(QAAMessage::InvalidData.as_str().to_string());
+        }
+        if self.flags & 0x02 != 0 {
+            messages.push(QAAMessage::NegativeBackscattering.as_str().to_string());
+        }
+        if self.flags & 0x04 != 0 {
+            messages.push(QAAMessage::DecompositionError.as_str().to_string());
+        }
+        if self.flags & 0x08 != 0 {
+            messages.push(QAAMessage::AphCorrectionApplied.as_str().to_string());
+        }
+        if self.flags & 0x10 != 0 {
+            messages.push(QAAMessage::NegativeAphValues.as_str().to_string());
+        }
+        if self.flags & 0x20 != 0 {
+            messages.push(QAAMessage::ChlorophyllCalculationError.as_str().to_string());
+        }
+        if self.flags & 0x40 != 0 {
+            messages.push(QAAMessage::AphRatioForcedMax.as_str().to_string());
+        }
+        if self.flags & 0x80 != 0 {
+            messages.push(QAAMessage::BackscatteringLessThanWater.as_str().to_string());
+        }
+
+        messages
+    }
+}
+
 pub fn subset_optical_data(wavelengths: &[u32], data: &BTreeMap<u32, f64>) -> BTreeMap<u32, f64> {
     wavelengths
         .iter()
