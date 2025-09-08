@@ -25,7 +25,7 @@ pub struct QaaResult {
     pub aph_ratio_443: f64,    // aph/a ratio at 443nm for quality assessment
 }
 
-fn subset_optical_data(wavelengths: &[u32], data: &BTreeMap<u32, f64>) -> BTreeMap<u32, f64> {
+pub fn subset_optical_data(wavelengths: &[u32], data: &BTreeMap<u32, f64>) -> BTreeMap<u32, f64> {
     wavelengths
         .iter()
         .map(|&lambda| {
@@ -71,6 +71,8 @@ fn calculate_phytoplankton_absorption(
 }
 
 pub fn qaa_v6(rrs: &BTreeMap<u32, f64>, satellite: Satellites) -> QaaResult {
+    // Initialize quality flags
+
     // SeaWiFS wavelengths used in the original code (nm)
     let original_wavelengths = [412, 443, 490, 555, 670];
 
@@ -210,8 +212,44 @@ pub fn qaa_v6(rrs: &BTreeMap<u32, f64>, satellite: Satellites) -> QaaResult {
     let corrected_acdom440 = a_443 - (a_443 * x1) - aw_443;
 
     // Final calculations with corrected acdom440
-    let acdom = calculate_acdom_absorption(&wavelengths, corrected_acdom440, sr, cyan_wl);
-    let aph = calculate_phytoplankton_absorption(&wavelengths, &a, &acdom, &aw);
+    let mut acdom = calculate_acdom_absorption(&wavelengths, corrected_acdom440, sr, cyan_wl);
+    let mut aph = calculate_phytoplankton_absorption(&wavelengths, &a, &acdom, &aw);
+
+    // Handle negative aph values and ensure physical constraints
+    // This is a common issue in QAA at red wavelengths with low reflectance
+    for (&wl, aph_val) in aph.iter_mut() {
+        if *aph_val < 0.0 {
+            // At red wavelengths, QAA can produce unrealistic results
+            // Apply physical constraints: a must be >= aw + minimum constituents
+            let aw_val = *aw.get(&wl).unwrap();
+            let a_val = *a.get(&wl).unwrap();
+
+            if a_val < aw_val {
+                // Total absorption is less than water absorption - physically impossible
+                // This indicates QAA limitation at this wavelength
+                // Set conservative estimates
+                let min_aph = 0.001;
+                let min_acdom = 0.001;
+
+                *aph_val = min_aph;
+                if let Some(acdom_val) = acdom.get_mut(&wl) {
+                    *acdom_val = min_acdom;
+                }
+
+                // Note: This breaks strict mass conservation but maintains physical realism
+                // In practice, red wavelength retrievals are often flagged as unreliable
+            } else {
+                // Normal case: set aph to small positive value and adjust acdom
+                let min_aph = 0.001;
+                *aph_val = min_aph;
+
+                let corrected_acdom = a_val - min_aph - aw_val;
+                if let Some(acdom_val) = acdom.get_mut(&wl) {
+                    *acdom_val = corrected_acdom.max(0.0);
+                }
+            }
+        }
+    }
 
     // Calculate chlorophyll concentration
     let aph_wavelengths = [violet_wl, cyan_wl, blue_wl, green_wl, red_wl];

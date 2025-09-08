@@ -97,15 +97,15 @@ pub const ETA: f64 = 0.5;
 /// Standard QAA algorithm parameter from Lee et al. (2002)
 pub const S: f64 = 0.015;
 
-pub const G0: f64 = 0.089;
-pub const G1: f64 = 0.1245;
+pub const G0: f64 = 0.08945;
+pub const G1: f64 = 0.1247;
 
 /// QAA step thresholds
 /// Algorithm decision thresholds from Lee et al. (2002) QAA implementation
 pub const RRS_670_THRESHOLD: f64 = 0.0015;
-pub const RRS_RATIO_THRESHOLD: f64 = 1.2;
 
 /// Default coefficients for SeaWiFS
+/// https://oceancolor.gsfc.nasa.gov/docs/ocssw/qaa_8c_source.html
 pub const C1: f64 = -1.146;
 pub const C2: f64 = -1.366;
 pub const C3: f64 = -0.469;
