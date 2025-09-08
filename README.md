@@ -56,11 +56,32 @@ Based on my experience, many of the current models for estimating aquatic primar
 
 ## Modules
 
-- iop
-- aop
-- phytoplankton physiological parameters (PvsE, ...)
-- light attenuation
-- primary production
+- **iop** - Inherent Optical Properties
+  - QAA v6 (Quasi-Analytical Algorithm) implementation based on NASA OCSSW
+- **aop** - Apparent Optical Properties
+- **phytoplankton physiological parameters** (PvsE, ...)
+- **light attenuation**
+- **primary production**
+
+## Reference Implementations
+
+### NASA OCSSW QAA Reference
+
+The `reference/nasa-ocssw/` directory contains a C reference implementation of the Quasi-Analytical Algorithm (QAA) v6, directly based on NASA's Ocean Color Science Software (OCSSW).
+
+**Purpose**: Validation and comparison baseline for the Rust QAA implementation in `src/iop/qaa.rs`
+
+**Usage**:
+
+```bash
+# Build and run the reference implementation
+make -C reference/nasa-ocssw run
+
+# View detailed documentation
+cat reference/nasa-ocssw/README.md
+```
+
+**Source**: https://oceancolor.gsfc.nasa.gov/docs/ocssw/qaa_8c_source.html
 
 ## Acknowledgments
 
