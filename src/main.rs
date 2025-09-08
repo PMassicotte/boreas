@@ -21,7 +21,7 @@ fn main() {
     println!("{}", modis);
     println!("Closest band to 440 in modis: {}", modis.closest_band(440));
 
-    let seawifs = SatBands::new(Satellites::Modis);
+    let seawifs = SatBands::new(Satellites::SeaWiFS);
     println!("{}", seawifs);
     println!(
         "Closest band to 700 in seawifs: {}",
