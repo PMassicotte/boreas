@@ -44,4 +44,5 @@ fn main() {
     let res = qaa_v6(&rrs, Satellites::Modis);
 
     println!("{:#?}", res);
+    println!("{:?}", res.get_messages());
 }
