@@ -97,8 +97,8 @@ pub const ETA: f64 = 0.5;
 /// Standard QAA algorithm parameter from Lee et al. (2002)
 pub const S: f64 = 0.015;
 
-pub const G0: f64 = 0.08945;
-pub const G1: f64 = 0.1247;
+pub const G0: f64 = 0.089;
+pub const G1: f64 = 0.125;
 
 /// QAA step thresholds
 /// Algorithm decision thresholds from Lee et al. (2002) QAA implementation
