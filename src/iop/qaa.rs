@@ -248,7 +248,7 @@ pub fn qaa_v6(rrs: &BTreeMap<u32, f64>, satellite: Satellites) -> QaaResult {
     let rrs_670 = rrs.get(&red_wl).unwrap();
 
     // NASA OCSSW coefficients for SeaWiFS
-    let acoefs = [-1.146, -1.366, -0.469];
+    let acoefs = [constants::C1, constants::C2, constants::C3];
 
     // Calculate ratio for absorption estimation
     let numer = rrs_443 + rrs_490;
