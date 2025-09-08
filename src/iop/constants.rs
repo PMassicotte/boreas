@@ -9,7 +9,7 @@ use std::sync::LazyLock;
 /// Water absorption coefficients at different wavelengths (nm)
 /// Values represent absorption coefficient in m^-1
 /// Data from Pope and Fry (1997) and other standard oceanographic references
-/// https://oceancolor.gsfc.nasa.gov/docs/rsr/water_coef.txt
+/// <https://oceancolor.gsfc.nasa.gov/docs/rsr/water_coef.txt>
 pub static AW_ALL: LazyLock<BTreeMap<u32, f64>> = LazyLock::new(|| {
     BTreeMap::from([
         (410, 0.00473),
@@ -105,7 +105,7 @@ pub const G1: f64 = 0.125;
 pub const RRS_670_THRESHOLD: f64 = 0.0015;
 
 /// Default coefficients for SeaWiFS
-/// https://oceancolor.gsfc.nasa.gov/docs/ocssw/qaa_8c_source.html
+/// <https://oceancolor.gsfc.nasa.gov/docs/ocssw/qaa_8c_source.html>
 pub const C1: f64 = -1.146;
 pub const C2: f64 = -1.366;
 pub const C3: f64 = -0.469;

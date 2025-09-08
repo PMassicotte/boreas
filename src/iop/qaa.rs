@@ -191,6 +191,9 @@ fn calculate_phytoplankton_absorption(
         .collect()
 }
 
+// From <https://www.ioccg.org/groups/Software_OCA/QAA_v5.pdf>
+// The 555 nm used in Eqs. 7-10 can be changed to 550 nm (for MODIS) or 560 nm (for MERIS) without
+// causing significant impacts on final IOP results.
 pub fn qaa_v6(rrs: &BTreeMap<u32, f64>, satellite: Satellites) -> QaaResult {
     // Initialize quality flags
     let mut flags = 0u8;
@@ -415,7 +418,3 @@ pub fn qaa_v6(rrs: &BTreeMap<u32, f64>, satellite: Satellites) -> QaaResult {
         aph_ratio_443: x1,
     }
 }
-
-// From https://www.ioccg.org/groups/Software_OCA/QAA_v5.pdf
-// The 555 nm used in Eqs. 7-10 can be changed to 550 nm (for MODIS) or 560 nm (for MERIS) without
-// causing significant impacts on final IOP results.
