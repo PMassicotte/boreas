@@ -1,6 +1,6 @@
 mod oceanographic_model;
 
-use oceanographic_model::OceanographicProcessor;
+use oceanographic_model::{OceanographicProcessor, processor::Bbox};
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,6 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     println!("PP calculated in {:?}", start.elapsed());
+
+    // ----------------
+    let bbox = Bbox::new(-90.0, 90.0, 45.0, 90.0);
+    let pp_values = processor.calculate_pp_for_bbox(bbox)?;
+
+    println!("test {:?}", pp_values);
 
     Ok(())
 }

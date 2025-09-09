@@ -2,6 +2,25 @@ use super::pixel::PixelData;
 use gdal::Dataset;
 use std::{collections::HashMap, fmt::Display};
 
+pub struct Bbox {
+    xmin: f64,
+    xmax: f64,
+    ymin: f64,
+    ymax: f64,
+}
+
+impl Bbox {
+    // TODO: should return an option, checking for bounds
+    pub fn new(xmin: f64, xmax: f64, ymin: f64, ymax: f64) -> Self {
+        Bbox {
+            xmin,
+            xmax,
+            ymin,
+            ymax,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct OceanographicProcessor {
     datasets: HashMap<String, Dataset>,
@@ -10,8 +29,8 @@ pub struct OceanographicProcessor {
 }
 
 impl OceanographicProcessor {
+    // TODO: Pass a Config for the file paths?
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        // Load all required rasters
         let raster_files = vec![
             ("rrs_443", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
             ("rrs_490", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
@@ -89,7 +108,6 @@ impl OceanographicProcessor {
         Ok(pixel.calculate_primary_production())
     }
 
-    // Calculate PP for a small region
     pub fn calculate_region_pp(
         &self,
         x_start: u32,
@@ -117,6 +135,41 @@ impl OceanographicProcessor {
     pub fn get_dim(&self) -> (u32, u32) {
         (self.width, self.height)
     }
+
+    // Calculate PP for a geographic bounding box
+    pub fn calculate_pp_for_bbox(
+        &self,
+        bbox: Bbox,
+    ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        // Get a reference dataset to determine spatial properties, using first as template
+        let sample_dataset = self.datasets.values().next().ok_or("No datasets loaded")?;
+
+        // Get the geotransform to convert lon/lat to pixel coordinates
+        let geotransform = sample_dataset.geo_transform()?;
+
+        // Destruct values
+        let Bbox {
+            xmin: min_lon,
+            xmax: max_lon,
+            ymin: min_lat,
+            ymax: max_lat,
+        } = bbox;
+
+        // Convert geographic coordinates to pixel coordinates
+        // geotransform: [top_left_x, pixel_width, 0, top_left_y, 0, -pixel_height]
+        let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as u32;
+        let pixel_max_x = ((max_lon - geotransform[0]) / geotransform[1]).ceil() as u32;
+        let pixel_min_y = ((max_lat - geotransform[3]) / geotransform[5]).floor() as u32;
+        let pixel_max_y = ((min_lat - geotransform[3]) / geotransform[5]).ceil() as u32;
+
+        // Ensure bounds are within dataset dimensions
+        let start_x = pixel_min_x.min(self.width);
+        let end_x = pixel_max_x.min(self.width);
+        let start_y = pixel_min_y.min(self.height);
+        let end_y = pixel_max_y.min(self.height);
+
+        self.calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
+    }
 }
 
 impl Display for OceanographicProcessor {
@@ -130,3 +183,5 @@ impl Display for OceanographicProcessor {
         )
     }
 }
+
+// TODO: Add tests comparing result of region_pp and bbox_pp, they should be the same if provided similar region in index or coord
