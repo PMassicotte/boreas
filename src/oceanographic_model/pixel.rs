@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 // Oceanographic data for a single pixel
 #[derive(Debug, Clone)]
 pub struct PixelData {
@@ -42,6 +44,22 @@ impl PixelData {
         let pp = 0.66125 * pbopt * chl * zeu; // mg C m-2 d-1
 
         Some(pp)
+    }
+}
+
+impl Display for PixelData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Pixel ({}, {})", self.x, self.y)?;
+        writeln!(f, "  RRS 443nm: {:?}", self.rrs_443)?;
+        writeln!(f, "  RRS 490nm: {:?}", self.rrs_490)?;
+        writeln!(f, "  RRS 555nm: {:?}", self.rrs_555)?;
+        writeln!(f, "  Kd 490nm: {:?}", self.kd_490)?;
+        writeln!(f, "  SST: {:?}", self.sst)?;
+        writeln!(f, "  Chlor-a: {:?}", self.chlor_a)?;
+        if let Some(pp) = self.calculate_primary_production() {
+            writeln!(f, "  Primary Production: {:.2} mg C m-2 d-1", pp)?;
+        }
+        Ok(())
     }
 }
 

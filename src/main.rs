@@ -9,15 +9,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
     let processor = OceanographicProcessor::new()?;
 
-    // println!("{}", processor);
+    println!("{}", processor);
 
     println!("Loaded rasters in {:?}", start.elapsed());
 
     let start = Instant::now();
     println!("=== Starting the processos ===");
     let dims = processor.get_dim();
+    println!("Original area: {}x{}", dims.0, dims.1);
 
-    let pp = processor.calculate_region_pp(0, 0, dims.0, dims.1).unwrap();
+    // let pp = processor.calculate_region_pp(0, 0, dims.0, dims.1).unwrap();
+    let pp = processor.calculate_region_pp(0, 0, 100, 100).unwrap();
 
     println!("Processed {} pixels", pp.len());
     println!(

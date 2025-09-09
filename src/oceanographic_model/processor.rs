@@ -1,6 +1,6 @@
 use super::pixel::PixelData;
 use gdal::Dataset;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug)]
 pub struct OceanographicProcessor {
@@ -116,5 +116,17 @@ impl OceanographicProcessor {
 
     pub fn get_dim(&self) -> (u32, u32) {
         (self.width, self.height)
+    }
+}
+
+impl Display for OceanographicProcessor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "OceanographicProcessor {{ datasets: {}, dimensions: {}x{} }}",
+            self.datasets.len(),
+            self.width,
+            self.height
+        )
     }
 }
