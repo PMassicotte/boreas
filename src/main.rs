@@ -1,3 +1,31 @@
-fn main() {
-    todo!()
+mod oceanographic_model;
+
+use oceanographic_model::OceanographicProcessor;
+use std::time::Instant;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Starting oceanographic primary production processing...");
+
+    let start = Instant::now();
+    let processor = OceanographicProcessor::new()?;
+
+    // println!("{}", processor);
+
+    println!("Loaded rasters in {:?}", start.elapsed());
+
+    let start = Instant::now();
+    println!("=== Starting the processos ===");
+    let dims = processor.get_dim();
+
+    let pp = processor.calculate_region_pp(0, 0, dims.0, dims.1).unwrap();
+
+    println!("Processed {} pixels", pp.len());
+    println!(
+        "Number of valid pixels {}",
+        processor.get_valid_pixel_count()
+    );
+
+    println!("PP calculated in {:?}", start.elapsed());
+
+    Ok(())
 }
