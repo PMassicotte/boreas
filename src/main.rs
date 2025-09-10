@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let processor = OceanographicProcessor::new()?;
     println!("{}", processor);
 
-    println!("=== Starting the processos ===");
+    println!("=== Starting the processor ===");
     let dims = processor.get_dim();
     println!(
         "Original area: {}x{} = {} pixels",
