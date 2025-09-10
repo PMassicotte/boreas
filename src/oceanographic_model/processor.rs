@@ -1,6 +1,7 @@
 use super::pixel::PixelData;
+use crate::utils;
 use gdal::Dataset;
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, path::Path};
 
 pub struct Bbox {
     xmin: f64,
@@ -40,6 +41,16 @@ pub struct OceanographicProcessor {
 }
 
 impl OceanographicProcessor {
+    fn detect_file_format_and_path(file_path: &str, variable_name: &str) -> String {
+        if file_path.ends_with(".nc") {
+            // NetCDF format - add NETCDF: prefix and variable suffix
+            format!("NETCDF:{}:{}", file_path, variable_name)
+        } else {
+            // Assume GeoTIFF or other GDAL-supported format
+            file_path.to_string()
+        }
+    }
+
     fn read_pixel_value(
         &self,
         dataset_name: &str,
@@ -84,7 +95,7 @@ impl OceanographicProcessor {
             ),
             (
                 "sst",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc",
             ),
             (
                 "chlor_a",
@@ -97,7 +108,16 @@ impl OceanographicProcessor {
         let mut height = 0;
 
         for (name, path) in raster_files {
-            match Dataset::open(path) {
+            // Validate file type before processing
+            let path_obj = Path::new(path);
+            if !utils::is_supported_file_type(path_obj) {
+                return Err(format!("Unsupported file type for {}: {}", name, path).into());
+            }
+
+            // Automatically detect file format and create appropriate GDAL path
+            let gdal_path = Self::detect_file_format_and_path(path, name);
+
+            match Dataset::open(&gdal_path) {
                 Ok(dataset) => {
                     let (w, h) = dataset.raster_size();
                     if width == 0 {

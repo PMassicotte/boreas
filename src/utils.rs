@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 /// Adds two BTreeMaps element-wise, returning a new map with the sum of values for each key.
 ///
@@ -24,4 +25,11 @@ pub fn add_maps(a: &BTreeMap<u32, f64>, b: &BTreeMap<u32, f64>) -> BTreeMap<u32,
             (*k, v + b_val)
         })
         .collect()
+}
+
+pub fn is_supported_file_type(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("tif") | Some("nc")
+    )
 }

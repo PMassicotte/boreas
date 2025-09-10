@@ -1,4 +1,5 @@
 mod oceanographic_model;
+mod utils;
 
 use oceanographic_model::{OceanographicProcessor, processor::Bbox};
 use std::time::Instant;
