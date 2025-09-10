@@ -1,6 +1,3 @@
-// TODO: Remove eventually
-#![allow(dead_code)]
-
 pub mod geotiff;
 pub mod nc;
 pub mod types;
