@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         processor.get_valid_pixel_count()
     );
 
-    let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
+    let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3)?;
     let pp_values = processor.calculate_pp_for_bbox(bbox)?;
 
     println!("Baffin Bay PP values - Count: {}", pp_values.len());
