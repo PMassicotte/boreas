@@ -293,8 +293,9 @@ mod tests {
         let diff = (bbox_results.len() as i32 - region_results.len() as i32).abs();
         assert!(
             bbox_results.len() == region_results.len(),
-            "The number of produced PP values are not the same: {}",
+            "The number of produced PP values are not the same: bbox_results.len() = {}, region_results.len() = {}, diff = {}",
+            bbox_results.len(),
+            region_results.len(),
             diff
-        );
     }
 }
