@@ -216,31 +216,32 @@ mod tests {
             }
         };
 
-        // Get dataset reference to calculate geotransform
+        // Use Baffin Bay coordinates (same as main.rs) which should have data
+        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
+
+        // Calculate PP using bbox method first
+        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+
+        // Get dataset reference to calculate geotransform for region method
         let sample_dataset = processor.datasets.values().next().unwrap();
         let geotransform = sample_dataset.geo_transform().unwrap();
 
-        // Define a test region in pixel coordinates
-        let pixel_start_x = 100u32;
-        let pixel_start_y = 100u32;
-        let pixel_width = 50u32;
-        let pixel_height = 50u32;
+        // Convert bbox coordinates to pixel coordinates for region method
+        let pixel_min_x = ((-67.2 - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((-58.7 - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((73.3 - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((70.9 - geotransform[3]) / geotransform[5]).ceil() as i32;
 
-        // Convert pixel coordinates to geographic coordinates for bbox
-        // geotransform: [top_left_x, pixel_width, 0, top_left_y, 0, -pixel_height]
-        let min_lon = geotransform[0] + pixel_start_x as f64 * geotransform[1];
-        let max_lon = geotransform[0] + (pixel_start_x + pixel_width) as f64 * geotransform[1];
-        let max_lat = geotransform[3] + pixel_start_y as f64 * geotransform[5];
-        let min_lat = geotransform[3] + (pixel_start_y + pixel_height) as f64 * geotransform[5];
+        // Ensure bounds are within dataset dimensions
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
 
         // Calculate PP using region method
         let region_results = processor
-            .calculate_region_pp(pixel_start_x, pixel_start_y, pixel_width, pixel_height)
+            .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
             .unwrap();
-
-        // Calculate PP using bbox method
-        let bbox = Bbox::new(min_lon, max_lon, min_lat, max_lat);
-        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
 
         // Results should be identical
         assert_eq!(region_results.len(), bbox_results.len());
@@ -263,25 +264,30 @@ mod tests {
             Err(_) => return,
         };
 
-        // Test that bbox coordinates are properly converted to pixel coordinates
+        // Use a smaller area within Baffin Bay that should have data
+        let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0);
+
+        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+
+        // Get dataset reference to calculate corresponding pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();
         let geotransform = sample_dataset.geo_transform().unwrap();
 
-        // Create a small bbox at the origin of the coordinate system
-        let origin_lon = geotransform[0];
-        let origin_lat = geotransform[3];
-        let pixel_size_x = geotransform[1];
-        let pixel_size_y = geotransform[5];
+        // Convert bbox coordinates to pixel coordinates for region method
+        let pixel_min_x = ((-67.0 - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((-60.0 - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((72.0 - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((71.0 - geotransform[3]) / geotransform[5]).ceil() as i32;
 
-        let bbox = Bbox::new(
-            origin_lon,
-            origin_lon + pixel_size_x * 10.0,
-            origin_lat + pixel_size_y * 10.0,
-            origin_lat,
-        );
+        // Ensure bounds are within dataset dimensions
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
 
-        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
-        let region_results = processor.calculate_region_pp(0, 0, 10, 10).unwrap();
+        let region_results = processor
+            .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
+            .unwrap();
 
         // Should produce similar number of results
         let diff = (bbox_results.len() as i32 - region_results.len() as i32).abs();

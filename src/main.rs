@@ -12,9 +12,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== Starting the processos ===");
     let dims = processor.get_dim();
-    println!("Original area: {}x{}", dims.0, dims.1);
+    println!(
+        "Original area: {}x{} = {} pixels",
+        dims.0,
+        dims.1,
+        processor.get_valid_pixel_count()
+    );
 
-    // ----------------
     let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
     let pp_values = processor.calculate_pp_for_bbox(bbox)?;
 
