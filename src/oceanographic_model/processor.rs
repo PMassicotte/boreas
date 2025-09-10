@@ -42,7 +42,7 @@ impl OceanographicProcessor {
             let scale = band.scale().unwrap_or(1.0);
             let missing_value = band.no_data_value();
 
-            if missing_value.map_or(false, |mv| raw_value == mv as f32) {
+            if missing_value.is_some_and(|mv| raw_value == mv as f32) {
                 Ok(None)
             } else {
                 Ok(Some(raw_value * scale as f32))
@@ -57,7 +57,7 @@ impl OceanographicProcessor {
         let raster_files = vec![
             (
                 "rrs_443",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif.tif",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
             ),
             (
                 "rrs_490",

@@ -8,32 +8,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let start = Instant::now();
     let processor = OceanographicProcessor::new()?;
-
     println!("{}", processor);
 
-    println!("Loaded rasters in {:?}", start.elapsed());
-
-    let start = Instant::now();
     println!("=== Starting the processos ===");
     let dims = processor.get_dim();
     println!("Original area: {}x{}", dims.0, dims.1);
-
-    // let pp = processor.calculate_region_pp(0, 0, dims.0, dims.1).unwrap();
-    let pp = processor.calculate_region_pp(0, 0, 100, 100).unwrap();
-
-    println!("Processed {} pixels", pp.len());
-    println!(
-        "Number of valid pixels {}",
-        processor.get_valid_pixel_count()
-    );
-
-    println!("PP calculated in {:?}", start.elapsed());
 
     // ----------------
     let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
     let pp_values = processor.calculate_pp_for_bbox(bbox)?;
 
-    println!("test {:?}", pp_values);
+    println!("Baffin Bay PP values - Count: {}", pp_values.len());
+    if !pp_values.is_empty() {
+        println!(
+            "  Min: {:.2} mg C m−2 d−1",
+            pp_values.iter().fold(f32::INFINITY, |a, &b| a.min(b))
+        );
+        println!(
+            "  Max: {:.2} mg C m−2 d−1",
+            pp_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+        );
+        println!(
+            "  Mean: {:.2} mg C m−2 d−1",
+            pp_values.iter().sum::<f32>() / pp_values.len() as f32
+        );
+        println!(
+            "  First 10 values: {:?}",
+            pp_values.iter().take(10).collect::<Vec<&f32>>()
+        );
+    }
+
+    println!("Time elapsed {:?}", start.elapsed());
 
     Ok(())
 }
