@@ -297,5 +297,6 @@ mod tests {
             bbox_results.len(),
             region_results.len(),
             diff
+        )
     }
 }
