@@ -57,27 +57,27 @@ impl OceanographicProcessor {
         let raster_files = vec![
             (
                 "rrs_443",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
             ),
             (
                 "rrs_490",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
             ),
             (
                 "rrs_555",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
             ),
             (
                 "kd_490",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
             ),
             (
                 "sst",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.cog.tif",
             ),
             (
                 "chlor_a",
-                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
             ),
         ];
 
