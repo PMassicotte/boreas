@@ -155,6 +155,8 @@
        fy="15"
        gradientUnits="userSpaceOnUse" />
   </defs>
+  <!-- White background -->
+  <rect width="512" height="512" fill="white" />
   <!-- Hexagon frame -->
   <polygon
      points="0,220 -190,110 -190,-110 0,-220 190,-110 190,110 "
