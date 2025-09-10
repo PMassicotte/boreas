@@ -1,4 +1,4 @@
-use boreas::iop::qaa_v6;
+use boreas::iop::qaa::qaa_v6;
 use boreas::sat_bands::Satellites;
 use std::collections::BTreeMap;
 

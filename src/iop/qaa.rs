@@ -46,7 +46,7 @@
 //!
 //! ```rust
 //! use std::collections::BTreeMap;
-//! use boreas::iop::qaa_v6;
+//! use boreas::iop::qaa::qaa_v6;
 //! use boreas::sat_bands::Satellites;
 //!
 //! let rrs = BTreeMap::from([
