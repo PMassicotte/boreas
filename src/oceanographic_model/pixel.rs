@@ -33,7 +33,7 @@ impl PixelData {
         let sst = self.sst?; // °C (auto-scaled by processor)
         let kd = self.kd_490?; // m−1 (auto-scaled by processor)
 
-        if chl <= 0.0 || kd <= 0.0 || !(-5.0..=50.0).contains(&sst) {
+        if chl <= 0.0 || kd <= 0.0 {
             return None;
         }
 
@@ -61,9 +61,6 @@ impl Display for PixelData {
         writeln!(f, "  Kd 490nm: {:?}", self.kd_490)?;
         writeln!(f, "  SST: {:?}", self.sst)?;
         writeln!(f, "  Chlor-a: {:?}", self.chlor_a)?;
-        if let Some(pp) = self.calculate_primary_production() {
-            writeln!(f, "  Primary Production: {:.2} mg C m-2 d-1", pp)?;
-        }
         Ok(())
     }
 }
