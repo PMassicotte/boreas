@@ -1,5 +1,4 @@
 use super::pixel::PixelData;
-use crate::utils;
 use gdal::Dataset;
 use std::{collections::HashMap, fmt::Display, path::Path};
 
@@ -110,7 +109,7 @@ impl OceanographicProcessor {
         for (name, path) in raster_files {
             // Validate file type before processing
             let path_obj = Path::new(path);
-            if !utils::is_supported_file_type(path_obj) {
+            if !super::is_supported_file_type(path_obj) {
                 return Err(format!("Unsupported file type for {}: {}", name, path).into());
             }
 
