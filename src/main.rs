@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("PP calculated in {:?}", start.elapsed());
 
     // ----------------
-    let bbox = Bbox::new(-90.0, 90.0, 45.0, 90.0);
+    let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
     let pp_values = processor.calculate_pp_for_bbox(bbox)?;
 
     println!("test {:?}", pp_values);

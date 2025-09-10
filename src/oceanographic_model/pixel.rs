@@ -29,19 +29,24 @@ impl PixelData {
 
     // Primary production calculation using Vertically Generalized Production Model (VGPM)
     pub fn calculate_primary_production(&self) -> Option<f32> {
-        let chl = self.chlor_a?;
-        let sst = self.sst?;
-        let kd = self.kd_490?;
+        let chl = self.chlor_a?; // mg/m3
+        let sst = self.sst?; // °C (auto-scaled by processor)
+        let kd = self.kd_490?; // m−1 (auto-scaled by processor)
 
-        if chl <= 0.0 || kd <= 0.0 {
+        if chl <= 0.0 || kd <= 0.0 || !(-5.0..=50.0).contains(&sst) {
             return None;
         }
 
         // Simplified VGPM calculation
-        let pbopt =
-            1.54 * 10_f32.powf(0.0275 * sst - 0.07 * sst.powf(2.0) + 0.0025 * sst.powf(3.0));
+        let exponent = 0.0275 * sst - 0.07 * sst.powf(2.0) + 0.0025 * sst.powf(3.0);
+        let pbopt = 1.54 * 10_f32.powf(exponent);
         let zeu = 4.6 / kd; // Euphotic depth
         let pp = 0.66125 * pbopt * chl * zeu; // mg C m-2 d-1
+
+        // Check for reasonable values (typical range: 10-2000 mg C m-2 d-1)
+        if !pp.is_finite() || pp <= 0.0 || pp > 2000.0 {
+            return None;
+        }
 
         Some(pp)
     }

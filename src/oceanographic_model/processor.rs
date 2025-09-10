@@ -32,12 +32,30 @@ impl OceanographicProcessor {
     // TODO: Pass a Config for the file paths?
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let raster_files = vec![
-            ("rrs_443", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
-            ("rrs_490", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
-            ("rrs_555", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
-            ("kd_490", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
-            ("sst", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
-            ("chlor_a", "./data/geotiff/AQUA_MODIS_chlor_a.tif"),
+            (
+                "rrs_443",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif.tif",
+            ),
+            (
+                "rrs_490",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
+            ),
+            (
+                "rrs_555",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
+            ),
+            (
+                "kd_490",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
+            ),
+            (
+                "sst",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.cog.tif",
+            ),
+            (
+                "chlor_a",
+                "./data/geotiff/modia_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
+            ),
         ];
 
         let mut datasets = HashMap::new();
@@ -79,30 +97,42 @@ impl OceanographicProcessor {
 
         // Read data from each dataset for this pixel.
         if let Some(dataset) = self.datasets.get("chlor_a") {
-            // Get the first raster band from the chlorophyll-a dataset
             let band = dataset.rasterband(1)?;
-            // Read a single pixel value at coordinates (x, y) as f32
             let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let value = buffer[(0, 0)];
-            // println!("Raw chlor_a value: {}", value);
-            // Handle missing data sentinel value (-32767.0) by converting to None
-            pixel.chlor_a = if value == -32767.0 { None } else { Some(value) };
+            let raw_value = buffer[(0, 0)];
+            // Get scale factor from band metadata, default to 1.0 if not present
+            let scale = band.scale().unwrap_or(1.0);
+            pixel.chlor_a = if raw_value == -32767.0 {
+                None
+            } else {
+                Some(raw_value * scale as f32)
+            };
         }
 
         if let Some(dataset) = self.datasets.get("sst") {
             let band = dataset.rasterband(1)?;
             let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let value = buffer[(0, 0)];
-            // println!("Raw sst value: {}", value);
-            pixel.sst = if value == -32767.0 { None } else { Some(value) };
+            let raw_value = buffer[(0, 0)];
+            // Get scale factor from band metadata, default to 1.0 if not present
+            let scale = band.scale().unwrap_or(1.0);
+            pixel.sst = if raw_value == -32767.0 {
+                None
+            } else {
+                Some(raw_value * scale as f32)
+            };
         }
 
         if let Some(dataset) = self.datasets.get("kd_490") {
             let band = dataset.rasterband(1)?;
             let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let value = buffer[(0, 0)];
-            // println!("Raw kd_490 value: {}", value);
-            pixel.kd_490 = if value == -32767.0 { None } else { Some(value) };
+            let raw_value = buffer[(0, 0)];
+            // Get scale factor from band metadata, default to 1.0 if not present
+            let scale = band.scale().unwrap_or(1.0);
+            pixel.kd_490 = if raw_value == -32767.0 {
+                None
+            } else {
+                Some(raw_value * scale as f32)
+            };
         }
 
         Ok(pixel.calculate_primary_production())
@@ -157,16 +187,16 @@ impl OceanographicProcessor {
 
         // Convert geographic coordinates to pixel coordinates
         // geotransform: [top_left_x, pixel_width, 0, top_left_y, 0, -pixel_height]
-        let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as u32;
-        let pixel_max_x = ((max_lon - geotransform[0]) / geotransform[1]).ceil() as u32;
-        let pixel_min_y = ((max_lat - geotransform[3]) / geotransform[5]).floor() as u32;
-        let pixel_max_y = ((min_lat - geotransform[3]) / geotransform[5]).ceil() as u32;
+        let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((max_lon - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((max_lat - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((min_lat - geotransform[3]) / geotransform[5]).ceil() as i32;
 
-        // Ensure bounds are within dataset dimensions
-        let start_x = pixel_min_x.min(self.width);
-        let end_x = pixel_max_x.min(self.width);
-        let start_y = pixel_min_y.min(self.height);
-        let end_y = pixel_max_y.min(self.height);
+        // Ensure bounds are within dataset dimensions and handle negative values
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(self.width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(self.height as i32) as u32;
 
         self.calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
     }
