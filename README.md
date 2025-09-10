@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg" alt="Boreas Logo", width="300"/>
+  <img src="logo.svg" alt="Boreas Logo", width="300"/>
 </p>
 
 # Boreas - Arctic Primary Production Model

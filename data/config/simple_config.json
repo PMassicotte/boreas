@@ -9,5 +9,15 @@
     "delimiter": ",",
     "date_column": "date",
     "value_column": "value"
+  },
+  "raster_band": {
+    "source": "/path/to/your/raster.tif",
+    "format": "raster",
+    "band": "band_name_or_number",
+    "variable": "rrs_443",
+    "date_extraction": {
+      "pattern": ".*_(\\d{8})_.*",
+      "format": "YYYYMMDD"
+    }
   }
 }
