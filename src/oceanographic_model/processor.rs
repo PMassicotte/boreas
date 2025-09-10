@@ -29,6 +29,29 @@ pub struct OceanographicProcessor {
 }
 
 impl OceanographicProcessor {
+    fn read_pixel_value(
+        &self,
+        dataset_name: &str,
+        x: u32,
+        y: u32,
+    ) -> Result<Option<f32>, Box<dyn std::error::Error>> {
+        if let Some(dataset) = self.datasets.get(dataset_name) {
+            let band = dataset.rasterband(1)?;
+            let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
+            let raw_value = buffer[(0, 0)];
+            let scale = band.scale().unwrap_or(1.0);
+            let missing_value = band.no_data_value();
+
+            if missing_value.map_or(false, |mv| raw_value == mv as f32) {
+                Ok(None)
+            } else {
+                Ok(Some(raw_value * scale as f32))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
     // TODO: Pass a Config for the file paths?
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let raster_files = vec![
@@ -96,44 +119,9 @@ impl OceanographicProcessor {
         let mut pixel = PixelData::new(x, y);
 
         // Read data from each dataset for this pixel.
-        if let Some(dataset) = self.datasets.get("chlor_a") {
-            let band = dataset.rasterband(1)?;
-            let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let raw_value = buffer[(0, 0)];
-            // Get scale factor from band metadata, default to 1.0 if not present
-            let scale = band.scale().unwrap_or(1.0);
-            pixel.chlor_a = if raw_value == -32767.0 {
-                None
-            } else {
-                Some(raw_value * scale as f32)
-            };
-        }
-
-        if let Some(dataset) = self.datasets.get("sst") {
-            let band = dataset.rasterband(1)?;
-            let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let raw_value = buffer[(0, 0)];
-            // Get scale factor from band metadata, default to 1.0 if not present
-            let scale = band.scale().unwrap_or(1.0);
-            pixel.sst = if raw_value == -32767.0 {
-                None
-            } else {
-                Some(raw_value * scale as f32)
-            };
-        }
-
-        if let Some(dataset) = self.datasets.get("kd_490") {
-            let band = dataset.rasterband(1)?;
-            let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let raw_value = buffer[(0, 0)];
-            // Get scale factor from band metadata, default to 1.0 if not present
-            let scale = band.scale().unwrap_or(1.0);
-            pixel.kd_490 = if raw_value == -32767.0 {
-                None
-            } else {
-                Some(raw_value * scale as f32)
-            };
-        }
+        pixel.chlor_a = self.read_pixel_value("chlor_a", x, y)?;
+        pixel.sst = self.read_pixel_value("sst", x, y)?;
+        pixel.kd_490 = self.read_pixel_value("kd_490", x, y)?;
 
         Ok(pixel.calculate_primary_production())
     }
