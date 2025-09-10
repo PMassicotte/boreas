@@ -202,4 +202,93 @@ impl Display for OceanographicProcessor {
     }
 }
 
-// TODO: Add tests comparing result of region_pp and bbox_pp, they should be the same if provided similar region in index or coord
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_region_pp_vs_bbox_pp_equivalence() {
+        let processor = match OceanographicProcessor::new() {
+            Ok(p) => p,
+            Err(_) => {
+                // Skip test if datasets can't be loaded (e.g., in CI environments)
+                return;
+            }
+        };
+
+        // Get dataset reference to calculate geotransform
+        let sample_dataset = processor.datasets.values().next().unwrap();
+        let geotransform = sample_dataset.geo_transform().unwrap();
+
+        // Define a test region in pixel coordinates
+        let pixel_start_x = 100u32;
+        let pixel_start_y = 100u32;
+        let pixel_width = 50u32;
+        let pixel_height = 50u32;
+
+        // Convert pixel coordinates to geographic coordinates for bbox
+        // geotransform: [top_left_x, pixel_width, 0, top_left_y, 0, -pixel_height]
+        let min_lon = geotransform[0] + pixel_start_x as f64 * geotransform[1];
+        let max_lon = geotransform[0] + (pixel_start_x + pixel_width) as f64 * geotransform[1];
+        let max_lat = geotransform[3] + pixel_start_y as f64 * geotransform[5];
+        let min_lat = geotransform[3] + (pixel_start_y + pixel_height) as f64 * geotransform[5];
+
+        // Calculate PP using region method
+        let region_results = processor
+            .calculate_region_pp(pixel_start_x, pixel_start_y, pixel_width, pixel_height)
+            .unwrap();
+
+        // Calculate PP using bbox method
+        let bbox = Bbox::new(min_lon, max_lon, min_lat, max_lat);
+        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+
+        // Results should be identical
+        assert_eq!(region_results.len(), bbox_results.len());
+
+        // Compare each value with small tolerance for floating point precision
+        for (region_val, bbox_val) in region_results.iter().zip(bbox_results.iter()) {
+            assert!(
+                (region_val - bbox_val).abs() < 1e-6,
+                "Values differ: region={}, bbox={}",
+                region_val,
+                bbox_val
+            );
+        }
+    }
+
+    #[test]
+    fn test_bbox_coordinate_conversion() {
+        let processor = match OceanographicProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        // Test that bbox coordinates are properly converted to pixel coordinates
+        let sample_dataset = processor.datasets.values().next().unwrap();
+        let geotransform = sample_dataset.geo_transform().unwrap();
+
+        // Create a small bbox at the origin of the coordinate system
+        let origin_lon = geotransform[0];
+        let origin_lat = geotransform[3];
+        let pixel_size_x = geotransform[1];
+        let pixel_size_y = geotransform[5];
+
+        let bbox = Bbox::new(
+            origin_lon,
+            origin_lon + pixel_size_x * 10.0,
+            origin_lat + pixel_size_y * 10.0,
+            origin_lat,
+        );
+
+        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+        let region_results = processor.calculate_region_pp(0, 0, 10, 10).unwrap();
+
+        // Should produce similar number of results
+        let diff = (bbox_results.len() as i32 - region_results.len() as i32).abs();
+        assert!(
+            bbox_results.len() == region_results.len(),
+            "The number of produced PP values are not the same: {}",
+            diff
+        );
+    }
+}
