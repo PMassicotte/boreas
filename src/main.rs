@@ -37,6 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // For now, the dataset remains in memory with all spatial information intact
         // Example of how to save dataset to file:
         let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
+
+        // TODO: Get the filename from the config
         let filename = format!("/home/filoche/Desktop/test_{}.tif", i);
         let options = gdal::cpl::CslStringList::new();
         let _copy = dataset.create_copy(&driver, &filename, &options)?;
