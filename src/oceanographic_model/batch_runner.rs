@@ -8,15 +8,15 @@ use crate::date_gen::DateTimeGenerator;
 use crate::oceanographic_model::OceanographicProcessor;
 
 #[derive(Debug)]
-pub struct BatchProcessor {
+pub struct BatchRunner {
     datasets: Vec<HashMap<String, String>>,
     config: Config,
 }
 
-impl BatchProcessor {
+impl BatchRunner {
     pub fn new(config: Config) -> Self {
         let datasets = Self::create_period_datasets(&config).unwrap();
-        BatchProcessor { datasets, config }
+        BatchRunner { datasets, config }
     }
 
     /// Creates datasets by finding actual files that match the date patterns

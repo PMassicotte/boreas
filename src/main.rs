@@ -8,7 +8,7 @@ mod sat_bands;
 mod utils;
 
 use config::Config;
-use oceanographic_model::batch_runner::BatchProcessor;
+use oceanographic_model::batch_runner::BatchRunner;
 // use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
 
     // Process datasets - now saves files immediately and returns file paths
-    let processor = BatchProcessor::new(config);
+    let processor = BatchRunner::new(config);
     let output_files = processor.process()?;
 
     println!(
