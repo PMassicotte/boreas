@@ -20,7 +20,9 @@ pub use timestep::TimeStep;
 #[derive(Debug, Deserialize, Clone)]
 pub struct RasterFile {
     pub name: String,
-    pub path: String,
+    pub base_directory: String,
+    pub filename_pattern: String,
+    pub date_format: String,
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +32,7 @@ pub struct Config {
     frequency: TimeStep,
     hourly_increment: u8,
     bbox: Option<Bbox>,
-    raster_files: Option<Vec<RasterFile>>,
+    raster_templates: Option<Vec<RasterFile>>,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -46,7 +48,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
-            raster_files: Option<Vec<RasterFile>>,
+            raster_templates: Option<Vec<RasterFile>>,
             bbox: Option<BboxHelper>,
         }
 
@@ -100,7 +102,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
-            raster_files: helper.raster_files,
+            raster_templates: helper.raster_templates,
             bbox,
         })
     }
@@ -118,7 +120,7 @@ impl Config {
             end_date,
             frequency,
             hourly_increment,
-            raster_files: None,
+            raster_templates: None,
             bbox: None,
         }
     }
@@ -136,8 +138,8 @@ impl Config {
         self.hourly_increment
     }
 
-    pub fn raster_files(&self) -> Option<&Vec<RasterFile>> {
-        self.raster_files.as_ref()
+    pub fn raster_templates(&self) -> Option<&Vec<RasterFile>> {
+        self.raster_templates.as_ref()
     }
 
     pub fn bbox(&self) -> Option<&Bbox> {
@@ -216,7 +218,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 1,
-            raster_files: None,
+            raster_templates: None,
             bbox: None,
         };
 
@@ -237,7 +239,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
-            raster_files: None,
+            raster_templates: None,
             bbox: None,
         };
 
@@ -258,7 +260,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
-            raster_files: None,
+            raster_templates: None,
             bbox: None,
         };
 
@@ -279,7 +281,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 3,
-            raster_files: None,
+            raster_templates: None,
             bbox: None,
         };
 

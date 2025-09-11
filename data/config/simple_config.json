@@ -1,7 +1,7 @@
 {
-  "start_date": "2019-01-01",
-  "end_date": "2019-03-31",
-  "frequency": "weekly",
+  "start_date": "2025-07-01",
+  "end_date": "2025-07-01",
+  "frequency": "daily",
   "hourly_increment": 4,
   "bbox": {
     "xmin": -67.2,
@@ -9,30 +9,42 @@
     "ymin": 70.9,
     "ymax": 73.3
   },
-  "raster_files": [
+  "raster_templates": [
     {
       "name": "rrs_443",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     },
     {
       "name": "rrs_490",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     },
     {
       "name": "rrs_555",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     },
     {
       "name": "kd_490",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     },
     {
       "name": "sst",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.SST.sst.4km.nc",
+      "date_format": "YYYYMMDD"
     },
     {
       "name": "chlor_a",
-      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     }
   ]
 }
