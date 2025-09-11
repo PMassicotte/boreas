@@ -103,8 +103,6 @@ impl SpatialRegion {
             "net_primary_production_of_biomass_expressed_as_carbon_per_unit_area_in_sea_water",
             "",
         )?;
-        band.set_metadata_item("units", "mg C m-2 d-1", "")?;
-        band.set_metadata_item("UNITS", "mg C m-2 d-1", "")?;
         band.set_metadata_item("Unit", "mg C m-2 d-1", "")?;
 
         let mut buffer = gdal::raster::Buffer::new(
