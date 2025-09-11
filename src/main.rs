@@ -8,7 +8,7 @@ mod sat_bands;
 mod utils;
 
 use config::Config;
-use oceanographic_model::batch_process::BatchProcessor;
+use oceanographic_model::batch_runner::BatchProcessor;
 // use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
