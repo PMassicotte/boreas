@@ -224,13 +224,15 @@ impl OceanographicProcessor {
         width: u32,
         height: u32,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity((width * height) as usize);
 
         for y in y_start..(y_start + height).min(self.height) {
             for x in x_start..(x_start + width).min(self.width) {
-                if let Some(pp) = self.calculate_pixel_pp(x, y)? {
-                    results.push(pp);
-                }
+                let pp_value = match self.calculate_pixel_pp(x, y)? {
+                    Some(pp) => pp,
+                    None => f32::NAN, // Use NaN for missing/no-data pixels
+                };
+                results.push(pp_value);
             }
         }
 
