@@ -15,49 +15,52 @@ pub struct BatchProcessor {
 
 impl BatchProcessor {
     pub fn new(config: Config) -> Self {
-        let datasets = Self::create_period_datasets(&config);
+        let datasets = Self::create_period_datasets(&config).unwrap();
         BatchProcessor { datasets, config }
     }
 
     /// Creates datasets by finding actual files that match the date patterns
-    pub fn create_period_datasets(config: &Config) -> Vec<HashMap<String, String>> {
+    fn create_period_datasets(config: &Config) -> Result<Vec<HashMap<String, String>>, String> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
         // Use DateTimeGenerator to generate the date series
+        // FIX: Pass config as ref
         let date_generator = DateTimeGenerator::new(config.clone());
         let dates = date_generator.generate_date_series();
         println!("Requested {} date periods: {:?}", dates.len(), dates);
 
-        if let Some(raster_templates) = config.raster_templates() {
-            for date in &dates {
-                let mut rasters = HashMap::new();
-                let mut missing_templates = Vec::new();
+        let Some(raster_templates) = config.raster_templates() else {
+            return Err("No raster templates configured".into());
+        };
 
-                for template in raster_templates {
-                    // Find files that match this template and contain this date
-                    if let Some(matching_file) = Self::find_matching_file(template, date) {
-                        rasters.insert(template.name.clone(), matching_file);
-                    } else {
-                        missing_templates.push(&template.name);
-                    }
-                }
+        for date in &dates {
+            let mut rasters = HashMap::new();
+            let mut missing_templates = Vec::new();
 
-                // Check if we found all required raster files for this date
-                if rasters.len() == raster_templates.len() {
-                    println!(
-                        "✓ Found all {} raster files for date {}",
-                        rasters.len(),
-                        date
-                    );
-                    datasets.push(rasters);
+            for template in raster_templates {
+                // Find files that match this template and contain this date
+                if let Some(matching_file) = Self::find_matching_file(template, date) {
+                    rasters.insert(template.name.clone(), matching_file);
                 } else {
-                    println!(
-                        "✗ Missing raster files for date {}: {:?}",
-                        date, missing_templates
-                    );
-                    missing_dates.push(*date);
+                    missing_templates.push(&template.name);
                 }
+            }
+
+            // Check if we found all required raster files for this date
+            if rasters.len() == raster_templates.len() {
+                println!(
+                    "✓ Found all {} raster files for date {}",
+                    rasters.len(),
+                    date
+                );
+                datasets.push(rasters);
+            } else {
+                println!(
+                    "✗ Missing raster files for date {}: {:?}",
+                    date, missing_templates
+                );
+                missing_dates.push(*date);
             }
         }
 
@@ -76,7 +79,7 @@ impl BatchProcessor {
             datasets.len()
         );
 
-        datasets
+        Ok(datasets)
     }
 
     /// Find a file that matches the template pattern for the specified date
