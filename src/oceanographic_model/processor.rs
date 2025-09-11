@@ -1,6 +1,6 @@
 use super::pixel::PixelData;
 use crate::bbox::Bbox;
-use gdal::Dataset;
+use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
 
 struct SpatialRegion {
@@ -79,7 +79,34 @@ impl SpatialRegion {
             dataset.set_spatial_ref(&spatial_ref)?;
         }
 
+        // Set dataset metadata
+        dataset.set_metadata_item("TIFFTAG_DOCUMENTNAME", "Primary Production", "")?;
+        dataset.set_metadata_item(
+            "TIFFTAG_IMAGEDESCRIPTION",
+            "Primary production calculated from satellite oceanographic data",
+            "",
+        )?;
+
+        dataset.set_metadata_item(
+            "TIFFTAG_SOFTWARE",
+            "Boreas - Oceanographic Processing Tool",
+            "",
+        )?;
+
         let mut band = dataset.rasterband(1)?;
+
+        // Set band metadata
+        band.set_description("Primary Production")?;
+        band.set_metadata_item("long_name", "Primary Production", "")?;
+        band.set_metadata_item(
+            "standard_name",
+            "net_primary_production_of_biomass_expressed_as_carbon_per_unit_area_in_sea_water",
+            "",
+        )?;
+        band.set_metadata_item("units", "mg C m-2 d-1", "")?;
+        band.set_metadata_item("UNITS", "mg C m-2 d-1", "")?;
+        band.set_metadata_item("Unit", "mg C m-2 d-1", "")?;
+
         let mut buffer = gdal::raster::Buffer::new(
             (self.output_width as usize, self.output_height as usize),
             pp_values,
