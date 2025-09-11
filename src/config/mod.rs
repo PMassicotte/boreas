@@ -100,10 +100,12 @@ impl<'de> Deserialize<'de> for Config {
         };
 
         // Validate output directory if present
-        if let Some(output_dir) = &helper.output_directory {
-            if !Path::new(output_dir).exists() {
-                return Err(D::Error::custom(ConfigError::OutputDirectory(output_dir.clone())));
-            }
+        if let Some(output_dir) = &helper.output_directory
+            && !Path::new(output_dir).exists()
+        {
+            return Err(D::Error::custom(ConfigError::OutputDirectory(
+                output_dir.clone(),
+            )));
         }
 
         Ok(Config {
