@@ -1,5 +1,6 @@
 {
   "$schema": "./simple_config.schema.json",
+  "model_id": "example_model",
   "start_date": "2025-07-01",
   "end_date": "2025-07-01",
   "frequency": "daily",

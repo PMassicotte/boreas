@@ -25,15 +25,18 @@ pub struct RasterFile {
     pub date_format: String,
 }
 
+// FIX: All should be validated in the Deserializer, so we do not have to use Option here in this
+// struct
 #[derive(Debug, Clone)]
 pub struct Config {
+    model_id: String,
     start_date: NaiveDate,
     end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
-    bbox: Option<Bbox>,
-    raster_templates: Option<Vec<RasterFile>>,
-    output_directory: Option<String>,
+    bbox: Bbox,
+    raster_templates: Vec<RasterFile>,
+    output_directory: String,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -45,6 +48,7 @@ impl<'de> Deserialize<'de> for Config {
     {
         #[derive(Deserialize)]
         struct ConfigHelper {
+            model_id: Option<String>,
             start_date: String,
             end_date: String,
             frequency: TimeStep,
@@ -84,57 +88,91 @@ impl<'de> Deserialize<'de> for Config {
             return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
-        // Validate bbox if present
-        let bbox = if let Some(bbox_helper) = helper.bbox {
-            Some(
-                Bbox::new(
-                    bbox_helper.xmin,
-                    bbox_helper.xmax,
-                    bbox_helper.ymin,
-                    bbox_helper.ymax,
-                )
-                .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?,
-            )
-        } else {
-            None
-        };
+        // Validate model_id is required and not empty
+        let model_id = helper
+            .model_id
+            .ok_or_else(|| D::Error::custom("model_id is required"))?;
+        if model_id.trim().is_empty() {
+            return Err(D::Error::custom("model_id cannot be empty"));
+        }
 
-        // Validate output directory if present
-        if let Some(output_dir) = &helper.output_directory
-            && !Path::new(output_dir).exists()
-        {
+        // Validate raster_templates is required and validate each template
+        let raster_templates = helper
+            .raster_templates
+            .ok_or_else(|| D::Error::custom("raster_templates is required"))?;
+        
+        // Validate each raster template
+        for template in &raster_templates {
+            if template.name.trim().is_empty() {
+                return Err(D::Error::custom("raster template name cannot be empty"));
+            }
+            if template.base_directory.trim().is_empty() {
+                return Err(D::Error::custom("raster template base_directory cannot be empty"));
+            }
+            if template.filename_pattern.trim().is_empty() {
+                return Err(D::Error::custom("raster template filename_pattern cannot be empty"));
+            }
+            if template.date_format.trim().is_empty() {
+                return Err(D::Error::custom("raster template date_format cannot be empty"));
+            }
+            if !template.filename_pattern.contains("{}") {
+                return Err(D::Error::custom("raster template filename_pattern must contain '{}' placeholder"));
+            }
+        }
+
+        // Validate bbox is required
+        let bbox = helper
+            .bbox
+            .ok_or_else(|| D::Error::custom("bbox is required"))?;
+        let bbox = Bbox::new(bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax)
+            .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?;
+
+        // Validate output directory is required
+        let output_directory = helper
+            .output_directory
+            .ok_or_else(|| D::Error::custom("output_directory is required"))?;
+        if !Path::new(&output_directory).exists() {
             return Err(D::Error::custom(ConfigError::OutputDirectory(
-                output_dir.clone(),
+                output_directory.clone(),
             )));
         }
 
         Ok(Config {
+            model_id,
             start_date,
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
-            raster_templates: helper.raster_templates,
+            raster_templates,
             bbox,
-            output_directory: helper.output_directory,
+            output_directory,
         })
     }
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
+    // FIX: Maybe remove this function, only used in one test, should only use from_file.
+    // Could create different template as json file and read them in tests instead?
     pub fn new(
+        model_id: String,
         start_date: NaiveDate,
         end_date: NaiveDate,
         frequency: TimeStep,
         hourly_increment: u8,
+        bbox: Bbox,
+        raster_templates: Vec<RasterFile>,
+        output_directory: String,
     ) -> Self {
         Self {
+            model_id,
             start_date,
             end_date,
             frequency,
             hourly_increment,
-            raster_templates: None,
-            bbox: None,
-            output_directory: None,
+            raster_templates,
+            bbox,
+            output_directory,
         }
     }
 
@@ -151,16 +189,20 @@ impl Config {
         self.hourly_increment
     }
 
-    pub fn raster_templates(&self) -> Option<&Vec<RasterFile>> {
-        self.raster_templates.as_ref()
+    pub fn raster_templates(&self) -> &Vec<RasterFile> {
+        &self.raster_templates
     }
 
-    pub fn bbox(&self) -> Option<&Bbox> {
-        self.bbox.as_ref()
+    pub fn bbox(&self) -> &Bbox {
+        &self.bbox
     }
 
-    pub fn output_directory(&self) -> Option<&String> {
-        self.output_directory.as_ref()
+    pub fn output_directory(&self) -> &String {
+        &self.output_directory
+    }
+
+    pub fn model_id(&self) -> &String {
+        &self.model_id
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -204,10 +246,19 @@ mod tests {
 
         let config_data = r#"
     {
+        "model_id": "test_model",
         "start_date": "2023-01-01",
         "end_date": "2023-01-10",
         "frequency": "daily",
-        "hourly_increment": 3
+        "hourly_increment": 3,
+        "raster_templates": [],
+        "bbox": {
+            "xmin": 0.0,
+            "xmax": 1.0,
+            "ymin": 0.0,
+            "ymax": 1.0
+        },
+        "output_directory": "/tmp"
     }
     "#;
 
@@ -231,13 +282,14 @@ mod tests {
     #[test]
     fn test_increment_date_daily() {
         let config = Config {
+            model_id: "test_model".to_string(),
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 1,
-            raster_templates: None,
-            bbox: None,
-            output_directory: None,
+            raster_templates: vec![],
+            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            output_directory: "/tmp".to_string(),
         };
 
         let new_date = config
@@ -253,13 +305,14 @@ mod tests {
     #[test]
     fn test_increment_date_weekly() {
         let config = Config {
+            model_id: "test_model".to_string(),
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
-            raster_templates: None,
-            bbox: None,
-            output_directory: None,
+            raster_templates: vec![],
+            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            output_directory: "/tmp".to_string(),
         };
 
         let new_date = config
@@ -275,13 +328,14 @@ mod tests {
     #[test]
     fn test_increment_date_monthly() {
         let config = Config {
+            model_id: "test_model".to_string(),
             start_date: NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
-            raster_templates: None,
-            bbox: None,
-            output_directory: None,
+            raster_templates: vec![],
+            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            output_directory: "/tmp".to_string(),
         };
 
         let new_date = config
@@ -297,13 +351,14 @@ mod tests {
     #[test]
     fn test_iterator() {
         let config = Config {
+            model_id: "test_model".to_string(),
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 3,
-            raster_templates: None,
-            bbox: None,
-            output_directory: None,
+            raster_templates: vec![],
+            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            output_directory: "/tmp".to_string(),
         };
 
         let dates: Vec<NaiveDate> = config.collect();

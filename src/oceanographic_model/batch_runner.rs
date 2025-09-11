@@ -30,9 +30,7 @@ impl BatchRunner {
         let dates = date_generator.generate_date_series();
         println!("Requested {} date periods: {:?}", dates.len(), dates);
 
-        let Some(raster_templates) = config.raster_templates() else {
-            return Err("No raster templates configured".into());
-        };
+        let raster_templates = config.raster_templates();
 
         for date in &dates {
             let mut rasters = HashMap::new();
@@ -133,10 +131,7 @@ impl BatchRunner {
     }
 
     pub fn process(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-        let output_dir = self
-            .config
-            .output_directory()
-            .ok_or("Output directory not configured")?;
+        let output_dir = self.config.output_directory();
 
         // Generate the date series to match with datasets
         let date_generator = DateTimeGenerator::new(self.config.clone());
@@ -147,21 +142,25 @@ impl BatchRunner {
         // For each day, calculate pp and save the results in a geotiff
         for (index, raster_dataset) in self.datasets.iter().enumerate() {
             let proc = OceanographicProcessor::new(raster_dataset)?;
-            if let Some(bbox) = self.config.bbox() {
-                let dataset = proc.calculate_pp_for_bbox(bbox)?;
+            let bbox = self.config.bbox();
+            let dataset = proc.calculate_pp_for_bbox(bbox)?;
 
-                // Generate output filename using the corresponding date
-                let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds
-                let date_str = date.format("%Y%m%d").to_string();
-                let filename = format!("{}/pp_{}.tif", output_dir, date_str);
+            // Generate output filename using the corresponding date
+            let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds
+            let date_str = date.format("%Y%m%d").to_string();
+            let filename = format!(
+                "{}/boreas_daily_primary_production_{}_{}.tif",
+                output_dir,
+                self.config.model_id(),
+                date_str
+            );
 
-                let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
-                let options = gdal::cpl::CslStringList::new();
-                let _saved_dataset = dataset.create_copy(&driver, &filename, &options)?;
+            let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
+            let options = gdal::cpl::CslStringList::new();
+            let _saved_dataset = dataset.create_copy(&driver, &filename, &options)?;
 
-                println!("✓ Saved dataset for {} to: {}", date, filename);
-                output_files.push(filename);
-            }
+            println!("✓ Saved dataset for {} to: {}", date, filename);
+            output_files.push(filename);
         }
 
         Ok(output_files)

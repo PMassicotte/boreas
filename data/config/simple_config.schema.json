@@ -3,6 +3,7 @@
   "title": "Boreas Configuration Schema",
   "type": "object",
   "required": [
+    "model_id",
     "start_date",
     "end_date",
     "frequency",
@@ -15,6 +16,11 @@
     "$schema": {
       "type": "string",
       "description": "JSON Schema reference"
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Model identifier. Used for naming output files"
     },
     "start_date": {
       "type": "string",

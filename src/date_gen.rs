@@ -57,10 +57,14 @@ mod tests {
 
     fn create_test_config() -> Config {
         Config::new(
+            "Test".to_string(),
             NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
             NaiveDate::from_ymd_opt(2023, 1, 2).unwrap(),
             TimeStep::Daily,
             6, // Every 6 hours
+            crate::bbox::Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            vec![],
+            "/tmp".to_string(),
         )
     }
 
