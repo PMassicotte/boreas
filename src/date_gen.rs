@@ -2,15 +2,18 @@ use crate::config::Config;
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 
+#[allow(dead_code)]
 pub struct DateTimeGenerator {
     config: Config,
 }
 
 impl DateTimeGenerator {
+    #[allow(dead_code)]
     pub fn new(config: Config) -> Self {
         Self { config }
     }
 
+    #[allow(dead_code)]
     pub fn generate_datetime_series(&self) -> Vec<NaiveDateTime> {
         let hourly_increment = self.config.hourly_increment();
         if hourly_increment == 0 {
@@ -38,6 +41,7 @@ impl DateTimeGenerator {
         datetimes
     }
 
+    #[allow(dead_code)]
     pub fn generate_date_series(&self) -> Vec<NaiveDate> {
         let config_iter = self.config.clone();
 

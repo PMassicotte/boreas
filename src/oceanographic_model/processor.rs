@@ -1,36 +1,7 @@
 use super::pixel::PixelData;
+use crate::bbox::Bbox;
 use gdal::Dataset;
 use std::{collections::HashMap, fmt::Display, path::Path};
-
-pub struct Bbox {
-    xmin: f64,
-    xmax: f64,
-    ymin: f64,
-    ymax: f64,
-}
-
-impl Bbox {
-    pub fn new(xmin: f64, xmax: f64, ymin: f64, ymax: f64) -> Result<Self, String> {
-        if !(-180.0..=180.0).contains(&xmin) || !(-180.0..=180.0).contains(&xmax) {
-            return Err("Longitude values must be between -180 and 180".to_string());
-        }
-
-        if !(-90.0..=90.0).contains(&ymin) || !(-90.0..=90.0).contains(&ymax) {
-            return Err("Latitude values must be between -90 and 90".to_string());
-        }
-
-        if xmin > xmax || ymin > ymax {
-            return Err("Min values must be <= max values".to_string());
-        }
-
-        Ok(Bbox {
-            xmin,
-            xmax,
-            ymin,
-            ymax,
-        })
-    }
-}
 
 #[derive(Debug)]
 pub struct OceanographicProcessor {
@@ -40,6 +11,42 @@ pub struct OceanographicProcessor {
 }
 
 impl OceanographicProcessor {
+    #[allow(dead_code)]
+    pub fn create_mock_data() -> HashMap<String, String> {
+        let mut mock_data = HashMap::new();
+        mock_data.insert(
+            "rrs_443".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "rrs_490".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "rrs_555".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "kd_490".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "sst".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
+                .to_string(),
+        );
+        mock_data.insert(
+            "chlor_a".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data
+    }
+
     fn detect_file_format_and_path(file_path: &str, variable_name: &str) -> String {
         if file_path.ends_with(".nc") {
             // NetCDF format - add NETCDF: prefix and variable suffix
@@ -74,41 +81,16 @@ impl OceanographicProcessor {
     }
 
     // TODO: Pass a Config for the file paths?
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let raster_files = vec![
-            (
-                "rrs_443",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
-            ),
-            (
-                "rrs_490",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
-            ),
-            (
-                "rrs_555",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
-            ),
-            (
-                "kd_490",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
-            ),
-            (
-                "sst",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc",
-            ),
-            (
-                "chlor_a",
-                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
-            ),
-        ];
-
+    // new() should receive an object (probably an hashmap) with: key = name and value = path
+    pub fn new(raster_files: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
         let mut datasets = HashMap::new();
         let mut width = 0;
         let mut height = 0;
 
+        // TODO: here we would loop keys and values
         for (name, path) in raster_files {
             // Validate file type before processing
-            let path_obj = Path::new(path);
+            let path_obj = Path::new(&path);
             if !super::is_supported_file_type(path_obj) {
                 return Err(format!("Unsupported file type for {}: {}", name, path).into());
             }
@@ -176,18 +158,21 @@ impl OceanographicProcessor {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub fn get_valid_pixel_count(&self) -> usize {
         self.width as usize * self.height as usize
     }
 
+    #[allow(dead_code)]
     pub fn get_dim(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
     // Calculate PP for a geographic bounding box
+    // TODO: Should return a gdal Dataset instead of a Vec<f32>, probably better on memory
     pub fn calculate_pp_for_bbox(
         &self,
-        bbox: Bbox,
+        bbox: &Bbox,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         // Get a reference dataset to determine spatial properties, using first as template
         let sample_dataset = self.datasets.values().next().ok_or("No datasets loaded")?;
@@ -237,36 +222,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bbox_coords_are_within_ranges() {
-        // Test valid coordinates
-        let valid_bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3);
-        assert!(valid_bbox.is_ok());
-
-        // Test longitude out of range
-        let invalid_lon = Bbox::new(-200.0, 0.0, 0.0, 10.0);
-        assert!(invalid_lon.is_err());
-
-        let invalid_lon2 = Bbox::new(0.0, 200.0, 0.0, 10.0);
-        assert!(invalid_lon2.is_err());
-
-        // Test latitude out of range
-        let invalid_lat = Bbox::new(0.0, 10.0, -100.0, 0.0);
-        assert!(invalid_lat.is_err());
-
-        let invalid_lat2 = Bbox::new(0.0, 10.0, 0.0, 100.0);
-        assert!(invalid_lat2.is_err());
-
-        // Test min > max
-        let invalid_order_lon = Bbox::new(10.0, 0.0, 0.0, 10.0);
-        assert!(invalid_order_lon.is_err());
-
-        let invalid_order_lat = Bbox::new(0.0, 10.0, 10.0, 0.0);
-        assert!(invalid_order_lat.is_err());
-    }
-
-    #[test]
     fn test_region_pp_vs_bbox_pp_equivalence() {
-        let processor = match OceanographicProcessor::new() {
+        let rasters = OceanographicProcessor::create_mock_data();
+        let processor = match OceanographicProcessor::new(&rasters) {
             Ok(p) => p,
             Err(_) => {
                 // Skip test if datasets can't be loaded (e.g., in CI environments)
@@ -278,7 +236,7 @@ mod tests {
         let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
 
         // Calculate PP using bbox method first
-        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+        let bbox_results = processor.calculate_pp_for_bbox(&bbox).unwrap();
 
         // Get dataset reference to calculate geotransform for region method
         let sample_dataset = processor.datasets.values().next().unwrap();
@@ -317,7 +275,8 @@ mod tests {
 
     #[test]
     fn test_bbox_coordinate_conversion() {
-        let processor = match OceanographicProcessor::new() {
+        let rasters = OceanographicProcessor::create_mock_data();
+        let processor = match OceanographicProcessor::new(&rasters) {
             Ok(p) => p,
             Err(_) => return,
         };
@@ -325,7 +284,7 @@ mod tests {
         // Use a smaller area within Baffin Bay that should have data
         let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
 
-        let bbox_results = processor.calculate_pp_for_bbox(bbox).unwrap();
+        let bbox_results = processor.calculate_pp_for_bbox(&bbox).unwrap();
 
         // Get dataset reference to calculate corresponding pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();

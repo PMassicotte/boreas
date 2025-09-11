@@ -9,19 +9,20 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-mod error;
-use error::ConfigError;
+use crate::bbox::Bbox;
+
+pub mod error;
+pub use error::ConfigError;
 
 pub mod timestep;
 pub use timestep::TimeStep;
 
 #[derive(Debug, Deserialize, Clone)]
-struct Data {
-    source: String,
-    format: String,
-    delimiter: String,
-    date_column: String,
-    value_column: String,
+pub struct RasterFile {
+    pub name: String,
+    pub base_directory: String,
+    pub filename_pattern: String,
+    pub date_format: String,
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +31,8 @@ pub struct Config {
     end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
-    data: Data,
+    bbox: Option<Bbox>,
+    raster_templates: Option<Vec<RasterFile>>,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -46,7 +48,16 @@ impl<'de> Deserialize<'de> for Config {
             end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
-            data: Data,
+            raster_templates: Option<Vec<RasterFile>>,
+            bbox: Option<BboxHelper>,
+        }
+
+        #[derive(Deserialize)]
+        struct BboxHelper {
+            xmin: f64,
+            xmax: f64,
+            ymin: f64,
+            ymax: f64,
         }
 
         // Deserialize into the helper struct
@@ -71,12 +82,28 @@ impl<'de> Deserialize<'de> for Config {
             return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
+        // Validate bbox if present
+        let bbox = if let Some(bbox_helper) = helper.bbox {
+            Some(
+                Bbox::new(
+                    bbox_helper.xmin,
+                    bbox_helper.xmax,
+                    bbox_helper.ymin,
+                    bbox_helper.ymax,
+                )
+                .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?,
+            )
+        } else {
+            None
+        };
+
         Ok(Config {
             start_date,
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
-            data: helper.data,
+            raster_templates: helper.raster_templates,
+            bbox,
         })
     }
 }
@@ -93,13 +120,8 @@ impl Config {
             end_date,
             frequency,
             hourly_increment,
-            data: Data {
-                source: String::new(),
-                format: String::new(),
-                delimiter: String::new(),
-                date_column: String::new(),
-                value_column: String::new(),
-            },
+            raster_templates: None,
+            bbox: None,
         }
     }
 
@@ -114,6 +136,14 @@ impl Config {
 
     pub fn hourly_increment(&self) -> u8 {
         self.hourly_increment
+    }
+
+    pub fn raster_templates(&self) -> Option<&Vec<RasterFile>> {
+        self.raster_templates.as_ref()
+    }
+
+    pub fn bbox(&self) -> Option<&Bbox> {
+        self.bbox.as_ref()
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -160,14 +190,7 @@ mod tests {
         "start_date": "2023-01-01",
         "end_date": "2023-01-10",
         "frequency": "daily",
-        "hourly_increment": 3,
-        "data": {
-            "source": "test.csv",
-            "format": "csv",
-            "delimiter": ",",
-            "date_column": "date",
-            "value_column": "value"
-        }
+        "hourly_increment": 3
     }
     "#;
 
@@ -195,13 +218,8 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_templates: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -221,13 +239,8 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_templates: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -247,13 +260,8 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_templates: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -273,13 +281,8 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 3,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_templates: None,
+            bbox: None,
         };
 
         let dates: Vec<NaiveDate> = config.collect();

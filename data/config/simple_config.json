@@ -1,23 +1,50 @@
 {
-  "start_date": "2019-01-01",
-  "end_date": "2019-03-31",
-  "frequency": "weekly",
+  "start_date": "2025-07-01",
+  "end_date": "2025-07-01",
+  "frequency": "daily",
   "hourly_increment": 4,
-  "data": {
-    "source": "https://www.example.com/data.csv",
-    "format": "csv",
-    "delimiter": ",",
-    "date_column": "date",
-    "value_column": "value"
+  "bbox": {
+    "xmin": -67.2,
+    "xmax": -58.7,
+    "ymin": 70.9,
+    "ymax": 73.3
   },
-  "raster_band": {
-    "source": "/path/to/your/raster.tif",
-    "format": "raster",
-    "band": "band_name_or_number",
-    "variable": "rrs_443",
-    "date_extraction": {
-      "pattern": ".*_(\\d{8})_.*",
-      "format": "YYYYMMDD"
+  "raster_templates": [
+    {
+      "name": "rrs_443",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif",
+      "date_format": "YYYYMMDD"
+    },
+    {
+      "name": "rrs_490",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif",
+      "date_format": "YYYYMMDD"
+    },
+    {
+      "name": "rrs_555",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif",
+      "date_format": "YYYYMMDD"
+    },
+    {
+      "name": "kd_490",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.KD.Kd_490.4km.cog.tif",
+      "date_format": "YYYYMMDD"
+    },
+    {
+      "name": "sst",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.SST.sst.4km.nc",
+      "date_format": "YYYYMMDD"
+    },
+    {
+      "name": "chlor_a",
+      "base_directory": "./data/geotiff/modis_aqua",
+      "filename_pattern": "AQUA_MODIS.{}_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif",
+      "date_format": "YYYYMMDD"
     }
-  }
+  ]
 }

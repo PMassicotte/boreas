@@ -1,47 +1,52 @@
+mod bbox;
+mod config;
+mod date_gen;
+mod iop;
+mod lut;
 mod oceanographic_model;
-use oceanographic_model::{OceanographicProcessor, processor::Bbox};
-use std::time::Instant;
+mod sat_bands;
+
+use config::Config;
+use oceanographic_model::batch_process::BatchProcessor;
+// use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting oceanographic primary production processing...");
 
-    let start = Instant::now();
-    let processor = OceanographicProcessor::new()?;
-    println!("{}", processor);
+    let config = Config::from_file("./data/config/simple_config.json").unwrap();
 
-    println!("=== Starting the processor ===");
-    let dims = processor.get_dim();
+    // TODO: I think process should return a gdal Dataset (1 per day/step)
+    let processor = BatchProcessor::new(config);
+    let pp_values = processor.process()?;
+
+    // WARNING: We get the fist day since we only generate 1 day of results for now
+    let pp1 = pp_values.first().ok_or("No processing results available")?;
+
+    let total_pp_count: usize = pp_values.iter().map(|v| v.len()).sum();
     println!(
-        "Original area: {}x{} = {} pixels",
-        dims.0,
-        dims.1,
-        processor.get_valid_pixel_count()
+        "Baffin Bay PP values - Number of days: {}, Total PP values: {}",
+        pp_values.len(),
+        total_pp_count
     );
 
-    let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3)?;
-    let pp_values = processor.calculate_pp_for_bbox(bbox)?;
-
-    println!("Baffin Bay PP values - Count: {}", pp_values.len());
-    if !pp_values.is_empty() {
+    if !pp1.is_empty() {
         println!(
             "  Min: {:.2} mg C m−2 d−1",
-            pp_values.iter().fold(f32::INFINITY, |a, &b| a.min(b))
+            pp1.iter().fold(f32::INFINITY, |a, &b| a.min(b))
         );
         println!(
             "  Max: {:.2} mg C m−2 d−1",
-            pp_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+            pp1.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
         );
         println!(
             "  Mean: {:.2} mg C m−2 d−1",
-            pp_values.iter().sum::<f32>() / pp_values.len() as f32
+            pp1.iter().sum::<f32>() / pp1.len() as f32
         );
         println!(
             "  First 10 values: {:?}",
-            pp_values.iter().take(10).collect::<Vec<&f32>>()
+            pp1.iter().take(10).collect::<Vec<&f32>>()
         );
     }
-
-    println!("Time elapsed {:?}", start.elapsed());
 
     Ok(())
 }

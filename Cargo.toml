@@ -6,7 +6,9 @@ edition = "2024"
 [dependencies]
 chrono = { version = "0.4.42", features = ["serde"] }
 gdal = { version = "0.18.0", features = ["bindgen"] }
+glob = "0.3.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 tempfile = "3.21.0"
 tiff = "0.10.3"
+walkdir = "2.5.0"

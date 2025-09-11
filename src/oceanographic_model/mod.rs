@@ -1,4 +1,5 @@
 use std::path::Path;
+pub mod batch_process;
 pub mod pixel;
 pub mod processor;
 

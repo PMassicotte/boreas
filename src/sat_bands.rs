@@ -1,11 +1,13 @@
 use std::fmt::Display;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum Satellites {
     SeaWiFS,
     Modis,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct SatBands {
     sensor: Satellites,
@@ -26,6 +28,7 @@ impl SatBands {
         }
     }
 
+    #[allow(dead_code)]
     pub fn wavelengths(&self) -> &[u32] {
         self.wavelengths
     }
