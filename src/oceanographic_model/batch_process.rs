@@ -129,15 +129,15 @@ impl BatchProcessor {
         }
     }
 
-    pub fn process(&self) -> Vec<Vec<f32>> {
+    pub fn process(&self) -> Result<Vec<Vec<f32>>, Box<dyn std::error::Error>> {
         let mut all_pp = Vec::new();
-        for raster in self.datasets.clone() {
-            let proc = OceanographicProcessor::new(&raster).unwrap();
+        for raster_dataset in &self.datasets {
+            let proc = OceanographicProcessor::new(raster_dataset)?;
             if let Some(bbox) = self.config.bbox() {
-                all_pp.push(proc.calculate_pp_for_bbox(bbox).unwrap());
+                all_pp.push(proc.calculate_pp_for_bbox(bbox)?);
             }
         }
 
-        all_pp
+        Ok(all_pp)
     }
 }

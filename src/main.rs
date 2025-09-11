@@ -7,7 +7,6 @@ mod oceanographic_model;
 mod sat_bands;
 
 use config::Config;
-// use date_gen::DateTimeGenerator;
 use oceanographic_model::batch_process::BatchProcessor;
 // use std::time::Instant;
 
@@ -15,18 +14,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting oceanographic primary production processing...");
 
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
-    // let date_gen = DateTimeGenerator::new(config);
-    // let dates = date_gen.generate_date_series();
-    // println!("{:?}", dates);
 
     // TODO: I think process should return a gdal Dataset (1 per day/step)
     let processor = BatchProcessor::new(config);
-    let pp_values = processor.process();
+    let pp_values = processor.process()?;
 
     // WARNING: We get the fist day since we only generate 1 day of results for now
-    let pp1 = pp_values.first().unwrap();
+    let pp1 = pp_values.first().ok_or("No processing results available")?;
 
-    println!("Baffin Bay PP values - Count: {}", pp_values.len());
+    let total_pp_count: usize = pp_values.iter().map(|v| v.len()).sum();
+    println!(
+        "Baffin Bay PP values - Number of days: {}, Total PP values: {}",
+        pp_values.len(),
+        total_pp_count
+    );
+
     if !pp1.is_empty() {
         println!(
             "  Min: {:.2} mg C m−2 d−1",
