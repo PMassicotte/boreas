@@ -169,6 +169,7 @@ impl OceanographicProcessor {
     }
 
     // Calculate PP for a geographic bounding box
+    // TODO: Should return a gdal Dataset instead of a Vec<f32>, probably better on memory
     pub fn calculate_pp_for_bbox(
         &self,
         bbox: &Bbox,

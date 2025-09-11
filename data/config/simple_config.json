@@ -3,21 +3,30 @@
   "end_date": "2019-03-31",
   "frequency": "weekly",
   "hourly_increment": 4,
-  "data": {
-    "source": "https://www.example.com/data.csv",
-    "format": "csv",
-    "delimiter": ",",
-    "date_column": "date",
-    "value_column": "value"
-  },
-  "raster_band": {
-    "source": "/path/to/your/raster.tif",
-    "format": "raster",
-    "band": "band_name_or_number",
-    "variable": "rrs_443",
-    "date_extraction": {
-      "pattern": ".*_(\\d{8})_.*",
-      "format": "YYYYMMDD"
+  "raster_files": [
+    {
+      "name": "rrs_443",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
+    },
+    {
+      "name": "rrs_490",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
+    },
+    {
+      "name": "rrs_555",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
+    },
+    {
+      "name": "kd_490",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
+    },
+    {
+      "name": "sst",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
+    },
+    {
+      "name": "chlor_a",
+      "path": "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
     }
-  }
+  ]
 }

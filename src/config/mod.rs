@@ -9,19 +9,16 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-mod error;
-use error::ConfigError;
+pub mod error;
+pub use error::ConfigError;
 
 pub mod timestep;
 pub use timestep::TimeStep;
 
 #[derive(Debug, Deserialize, Clone)]
-struct Data {
-    source: String,
-    format: String,
-    delimiter: String,
-    date_column: String,
-    value_column: String,
+pub struct RasterFile {
+    pub name: String,
+    pub path: String,
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +27,7 @@ pub struct Config {
     end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
-    data: Data,
+    raster_files: Option<Vec<RasterFile>>,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -46,7 +43,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
-            data: Data,
+            raster_files: Option<Vec<RasterFile>>,
         }
 
         // Deserialize into the helper struct
@@ -76,7 +73,7 @@ impl<'de> Deserialize<'de> for Config {
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
-            data: helper.data,
+            raster_files: helper.raster_files,
         })
     }
 }
@@ -93,13 +90,7 @@ impl Config {
             end_date,
             frequency,
             hourly_increment,
-            data: Data {
-                source: String::new(),
-                format: String::new(),
-                delimiter: String::new(),
-                date_column: String::new(),
-                value_column: String::new(),
-            },
+            raster_files: None,
         }
     }
 
@@ -114,6 +105,10 @@ impl Config {
 
     pub fn hourly_increment(&self) -> u8 {
         self.hourly_increment
+    }
+
+    pub fn raster_files(&self) -> Option<&Vec<RasterFile>> {
+        self.raster_files.as_ref()
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -160,14 +155,7 @@ mod tests {
         "start_date": "2023-01-01",
         "end_date": "2023-01-10",
         "frequency": "daily",
-        "hourly_increment": 3,
-        "data": {
-            "source": "test.csv",
-            "format": "csv",
-            "delimiter": ",",
-            "date_column": "date",
-            "value_column": "value"
-        }
+        "hourly_increment": 3
     }
     "#;
 
@@ -195,13 +183,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_files: None,
         };
 
         let new_date = config
@@ -221,13 +203,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_files: None,
         };
 
         let new_date = config
@@ -247,13 +223,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_files: None,
         };
 
         let new_date = config
@@ -273,13 +243,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,
             hourly_increment: 3,
-            data: Data {
-                source: "test.csv".to_string(),
-                format: "csv".to_string(),
-                delimiter: ",".to_string(),
-                date_column: "date".to_string(),
-                value_column: "value".to_string(),
-            },
+            raster_files: None,
         };
 
         let dates: Vec<NaiveDate> = config.collect();

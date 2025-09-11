@@ -8,17 +8,22 @@ mod sat_bands;
 
 use bbox::Bbox;
 use config::Config;
+// use date_gen::DateTimeGenerator;
 use oceanographic_model::batch_process::BatchProcessor;
 // use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting oceanographic primary production processing...");
 
-    let _config = Config::from_file("./data/config/simple_config.json").unwrap();
+    let config = Config::from_file("./data/config/simple_config.json").unwrap();
+    // let date_gen = DateTimeGenerator::new(config);
+    // let dates = date_gen.generate_date_series();
+    // println!("{:?}", dates);
+    //
     let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3)?;
 
-    // TODO: Should we bass the config? I think so
-    let processor = BatchProcessor::new();
+    // TODO: I think process should return a gdal Dataset (1 per day/step)
+    let processor = BatchProcessor::new(config);
     let pp_values = processor.process(bbox);
 
     // WARNING: We get the fist day since we only generate 1 day of results for now
