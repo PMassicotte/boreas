@@ -9,6 +9,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
+use crate::bbox::Bbox;
+
 pub mod error;
 pub use error::ConfigError;
 
@@ -27,6 +29,7 @@ pub struct Config {
     end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
+    bbox: Option<Bbox>,
     raster_files: Option<Vec<RasterFile>>,
 }
 
@@ -44,6 +47,15 @@ impl<'de> Deserialize<'de> for Config {
             frequency: TimeStep,
             hourly_increment: u8,
             raster_files: Option<Vec<RasterFile>>,
+            bbox: Option<BboxHelper>,
+        }
+
+        #[derive(Deserialize)]
+        struct BboxHelper {
+            xmin: f64,
+            xmax: f64,
+            ymin: f64,
+            ymax: f64,
         }
 
         // Deserialize into the helper struct
@@ -68,12 +80,28 @@ impl<'de> Deserialize<'de> for Config {
             return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
+        // Validate bbox if present
+        let bbox = if let Some(bbox_helper) = helper.bbox {
+            Some(
+                Bbox::new(
+                    bbox_helper.xmin,
+                    bbox_helper.xmax,
+                    bbox_helper.ymin,
+                    bbox_helper.ymax,
+                )
+                .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?,
+            )
+        } else {
+            None
+        };
+
         Ok(Config {
             start_date,
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
             raster_files: helper.raster_files,
+            bbox,
         })
     }
 }
@@ -91,6 +119,7 @@ impl Config {
             frequency,
             hourly_increment,
             raster_files: None,
+            bbox: None,
         }
     }
 
@@ -109,6 +138,10 @@ impl Config {
 
     pub fn raster_files(&self) -> Option<&Vec<RasterFile>> {
         self.raster_files.as_ref()
+    }
+
+    pub fn bbox(&self) -> Option<&Bbox> {
+        self.bbox.as_ref()
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -184,6 +217,7 @@ mod tests {
             frequency: TimeStep::Daily,
             hourly_increment: 1,
             raster_files: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -204,6 +238,7 @@ mod tests {
             frequency: TimeStep::Weekly,
             hourly_increment: 1,
             raster_files: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -224,6 +259,7 @@ mod tests {
             frequency: TimeStep::Monthly,
             hourly_increment: 1,
             raster_files: None,
+            bbox: None,
         };
 
         let new_date = config
@@ -244,6 +280,7 @@ mod tests {
             frequency: TimeStep::Daily,
             hourly_increment: 3,
             raster_files: None,
+            bbox: None,
         };
 
         let dates: Vec<NaiveDate> = config.collect();

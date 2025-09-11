@@ -3,6 +3,12 @@
   "end_date": "2019-03-31",
   "frequency": "weekly",
   "hourly_increment": 4,
+  "bbox": {
+    "xmin": -67.2,
+    "xmax": -58.7,
+    "ymin": 70.9,
+    "ymax": 73.3
+  },
   "raster_files": [
     {
       "name": "rrs_443",

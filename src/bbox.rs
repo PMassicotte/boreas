@@ -1,3 +1,6 @@
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Bbox {
     pub xmin: f64,
     pub xmax: f64,

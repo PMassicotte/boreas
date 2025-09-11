@@ -6,7 +6,6 @@ mod lut;
 mod oceanographic_model;
 mod sat_bands;
 
-use bbox::Bbox;
 use config::Config;
 // use date_gen::DateTimeGenerator;
 use oceanographic_model::batch_process::BatchProcessor;
@@ -19,12 +18,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let date_gen = DateTimeGenerator::new(config);
     // let dates = date_gen.generate_date_series();
     // println!("{:?}", dates);
-    //
-    let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3)?;
 
     // TODO: I think process should return a gdal Dataset (1 per day/step)
     let processor = BatchProcessor::new(config);
-    let pp_values = processor.process(bbox);
+    let pp_values = processor.process();
 
     // WARNING: We get the fist day since we only generate 1 day of results for now
     let pp1 = pp_values.first().unwrap();

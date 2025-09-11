@@ -1,4 +1,3 @@
-use crate::bbox::Bbox;
 use std::collections::HashMap;
 
 use crate::config::Config;
@@ -7,6 +6,7 @@ use crate::oceanographic_model::OceanographicProcessor;
 #[derive(Debug)]
 pub struct BatchProcessor {
     datasets: Vec<HashMap<String, String>>,
+    config: Config,
 }
 
 impl BatchProcessor {
@@ -21,14 +21,16 @@ impl BatchProcessor {
         }
 
         datasets.push(rasters);
-        BatchProcessor { datasets }
+        BatchProcessor { datasets, config }
     }
 
-    pub fn process(&self, bbox: Bbox) -> Vec<Vec<f32>> {
+    pub fn process(&self) -> Vec<Vec<f32>> {
         let mut all_pp = Vec::new();
         for raster in self.datasets.clone() {
             let proc = OceanographicProcessor::new(&raster).unwrap();
-            all_pp.push(proc.calculate_pp_for_bbox(&bbox).unwrap());
+            if let Some(bbox) = self.config.bbox() {
+                all_pp.push(proc.calculate_pp_for_bbox(bbox).unwrap());
+            }
         }
 
         all_pp
