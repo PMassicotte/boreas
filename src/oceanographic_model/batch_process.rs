@@ -1,4 +1,5 @@
 use chrono::NaiveDate;
+use gdal::Dataset;
 use std::collections::HashMap;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -129,7 +130,7 @@ impl BatchProcessor {
         }
     }
 
-    pub fn process(&self) -> Result<Vec<Vec<f32>>, Box<dyn std::error::Error>> {
+    pub fn process(&self) -> Result<Vec<Dataset>, Box<dyn std::error::Error>> {
         let mut all_pp = Vec::new();
         for raster_dataset in &self.datasets {
             let proc = OceanographicProcessor::new(raster_dataset)?;
