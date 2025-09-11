@@ -1,8 +1,10 @@
 {
+  "$schema": "./simple_config.schema.json",
   "start_date": "2025-07-01",
   "end_date": "2025-07-01",
   "frequency": "daily",
   "hourly_increment": 4,
+  "output_directory": "./output",
   "bbox": {
     "xmin": -67.2,
     "xmax": -58.7,
