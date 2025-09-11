@@ -1,6 +1,6 @@
 use chrono::NaiveDate;
-use gdal::Dataset;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -130,15 +130,40 @@ impl BatchProcessor {
         }
     }
 
-    pub fn process(&self) -> Result<Vec<Dataset>, Box<dyn std::error::Error>> {
-        let mut all_pp = Vec::new();
-        for raster_dataset in &self.datasets {
+    pub fn process(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        // Get output directory from config, default to current directory
+        let default_dir = ".".to_string();
+        let output_dir = self.config.output_directory().unwrap_or(&default_dir);
+
+        // Create output directory if it doesn't exist
+        fs::create_dir_all(output_dir)?;
+
+        // Generate the date series to match with datasets
+        let date_generator = DateTimeGenerator::new(self.config.clone());
+        let dates = date_generator.generate_date_series();
+
+        let mut output_files = Vec::new();
+
+        // For each day, calculate pp and save the results in a geotiff
+        for (index, raster_dataset) in self.datasets.iter().enumerate() {
             let proc = OceanographicProcessor::new(raster_dataset)?;
             if let Some(bbox) = self.config.bbox() {
-                all_pp.push(proc.calculate_pp_for_bbox(bbox)?);
+                let dataset = proc.calculate_pp_for_bbox(bbox)?;
+
+                // Generate output filename using the corresponding date
+                let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds
+                let date_str = date.format("%Y%m%d").to_string();
+                let filename = format!("{}/pp_{}.tif", output_dir, date_str);
+
+                let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
+                let options = gdal::cpl::CslStringList::new();
+                let _saved_dataset = dataset.create_copy(&driver, &filename, &options)?;
+
+                println!("✓ Saved dataset for {} to: {}", date, filename);
+                output_files.push(filename);
             }
         }
 
-        Ok(all_pp)
+        Ok(output_files)
     }
 }
