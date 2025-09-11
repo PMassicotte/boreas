@@ -1,50 +1,171 @@
 use super::pixel::PixelData;
 use crate::bbox::Bbox;
-use gdal::Dataset;
+use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
+
+struct SpatialRegion {
+    start_x: u32,
+    start_y: u32,
+    output_width: u32,
+    output_height: u32,
+    geotransform: [f64; 6],
+}
+
+impl SpatialRegion {
+    fn new(
+        bbox: &Bbox,
+        geotransform: &[f64; 6],
+        dataset_width: u32,
+        dataset_height: u32,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let Bbox {
+            xmin: min_lon,
+            xmax: max_lon,
+            ymin: min_lat,
+            ymax: max_lat,
+        } = bbox;
+
+        // Convert geographic coordinates to pixel coordinates
+        let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((max_lon - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((max_lat - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((min_lat - geotransform[3]) / geotransform[5]).ceil() as i32;
+
+        // Ensure bounds are within dataset dimensions and handle negative values
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(dataset_width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(dataset_height as i32) as u32;
+
+        // Calculate the output dimensions
+        let output_width = end_x - start_x;
+        let output_height = end_y - start_y;
+
+        Ok(Self {
+            start_x,
+            start_y,
+            output_width,
+            output_height,
+            geotransform: *geotransform,
+        })
+    }
+
+    fn create_output_dataset(
+        &self,
+        sample_dataset: &Dataset,
+        pp_values: Vec<f32>,
+    ) -> Result<Dataset, Box<dyn std::error::Error>> {
+        let mem_filename = "/vsimem/pp_output.tif";
+        let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
+        let mut dataset = driver.create_with_band_type::<f32, _>(
+            mem_filename,
+            self.output_width as usize,
+            self.output_height as usize,
+            1,
+        )?;
+
+        let output_geotransform = [
+            self.geotransform[0] + (self.start_x as f64) * self.geotransform[1], // top-left x
+            self.geotransform[1],                                                // pixel width
+            self.geotransform[2], // rotation (usually 0)
+            self.geotransform[3] + (self.start_y as f64) * self.geotransform[5], // top-left y
+            self.geotransform[4], // rotation (usually 0)
+            self.geotransform[5], // pixel height (negative)
+        ];
+
+        dataset.set_geo_transform(&output_geotransform)?;
+
+        if let Ok(spatial_ref) = sample_dataset.spatial_ref() {
+            dataset.set_spatial_ref(&spatial_ref)?;
+        }
+
+        // Set dataset metadata
+        dataset.set_metadata_item("TIFFTAG_DOCUMENTNAME", "Primary Production", "")?;
+        dataset.set_metadata_item(
+            "TIFFTAG_IMAGEDESCRIPTION",
+            "Primary production calculated from satellite oceanographic data",
+            "",
+        )?;
+
+        dataset.set_metadata_item(
+            "TIFFTAG_SOFTWARE",
+            "Boreas - Oceanographic Processing Tool",
+            "",
+        )?;
+
+        let mut band = dataset.rasterband(1)?;
+
+        // Set band metadata
+        band.set_description("Primary Production")?;
+        band.set_metadata_item("long_name", "Primary Production", "")?;
+        band.set_metadata_item(
+            "standard_name",
+            "net_primary_production_of_biomass_expressed_as_carbon_per_unit_area_in_sea_water",
+            "",
+        )?;
+        band.set_metadata_item("Unit", "mg C m-2 d-1", "")?;
+
+        let mut buffer = gdal::raster::Buffer::new(
+            (self.output_width as usize, self.output_height as usize),
+            pp_values,
+        );
+
+        band.write(
+            (0, 0),
+            (self.output_width as usize, self.output_height as usize),
+            &mut buffer,
+        )?;
+
+        Ok(dataset)
+    }
+}
 
 #[derive(Debug)]
 pub struct OceanographicProcessor {
+    // HashMap containing all the input datasets loaded by GDAL
     datasets: HashMap<String, Dataset>,
     width: u32,
     height: u32,
 }
 
 impl OceanographicProcessor {
-    #[allow(dead_code)]
-    pub fn create_mock_data() -> HashMap<String, String> {
-        let mut mock_data = HashMap::new();
-        mock_data.insert(
-            "rrs_443".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "rrs_490".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "rrs_555".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "kd_490".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "sst".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
-                .to_string(),
-        );
-        mock_data.insert(
-            "chlor_a".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data
+    pub fn new(raster_files: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut datasets = HashMap::new();
+        let mut width = 0;
+        let mut height = 0;
+
+        for (name, path) in raster_files {
+            // Validate file type before processing
+            let path_obj = Path::new(&path);
+            if !super::is_supported_file_type(path_obj) {
+                return Err(format!("Unsupported file type for {}: {}", name, path).into());
+            }
+
+            // Automatically detect file format and create appropriate GDAL path
+            let gdal_path = Self::detect_file_format_and_path(path, name);
+
+            match Dataset::open(&gdal_path) {
+                Ok(dataset) => {
+                    let (w, h) = dataset.raster_size();
+                    if width == 0 {
+                        width = w as u32;
+                        height = h as u32;
+                    }
+                    // Verify all rasters have same dimensions
+                    if w as u32 != width || h as u32 != height {
+                        eprintln!("Warning: {} has different dimensions", name);
+                    }
+                    datasets.insert(name.to_string(), dataset);
+                }
+                Err(e) => eprintln!("Could not load {}: {}", name, e),
+            }
+        }
+
+        Ok(Self {
+            datasets,
+            width,
+            height,
+        })
     }
 
     fn detect_file_format_and_path(file_path: &str, variable_name: &str) -> String {
@@ -78,48 +199,6 @@ impl OceanographicProcessor {
         } else {
             Ok(None)
         }
-    }
-
-    // TODO: Pass a Config for the file paths?
-    // new() should receive an object (probably an hashmap) with: key = name and value = path
-    pub fn new(raster_files: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut datasets = HashMap::new();
-        let mut width = 0;
-        let mut height = 0;
-
-        // TODO: here we would loop keys and values
-        for (name, path) in raster_files {
-            // Validate file type before processing
-            let path_obj = Path::new(&path);
-            if !super::is_supported_file_type(path_obj) {
-                return Err(format!("Unsupported file type for {}: {}", name, path).into());
-            }
-
-            // Automatically detect file format and create appropriate GDAL path
-            let gdal_path = Self::detect_file_format_and_path(path, name);
-
-            match Dataset::open(&gdal_path) {
-                Ok(dataset) => {
-                    let (w, h) = dataset.raster_size();
-                    if width == 0 {
-                        width = w as u32;
-                        height = h as u32;
-                    }
-                    // Verify all rasters have same dimensions
-                    if w as u32 != width || h as u32 != height {
-                        eprintln!("Warning: {} has different dimensions", name);
-                    }
-                    datasets.insert(name.to_string(), dataset);
-                }
-                Err(e) => eprintln!("Could not load {}: {}", name, e),
-            }
-        }
-
-        Ok(Self {
-            datasets,
-            width,
-            height,
-        })
     }
 
     // Simple method to calculate primary production for a single pixel
@@ -169,39 +248,25 @@ impl OceanographicProcessor {
     }
 
     // Calculate PP for a geographic bounding box
-    // TODO: Should return a gdal Dataset instead of a Vec<f32>, probably better on memory
     pub fn calculate_pp_for_bbox(
         &self,
         bbox: &Bbox,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-        // Get a reference dataset to determine spatial properties, using first as template
+    ) -> Result<Dataset, Box<dyn std::error::Error>> {
         let sample_dataset = self.datasets.values().next().ok_or("No datasets loaded")?;
-
-        // Get the geotransform to convert lon/lat to pixel coordinates
         let geotransform = sample_dataset.geo_transform()?;
 
-        // Destruct values
-        let Bbox {
-            xmin: min_lon,
-            xmax: max_lon,
-            ymin: min_lat,
-            ymax: max_lat,
-        } = bbox;
+        let spatial_region = SpatialRegion::new(bbox, &geotransform, self.width, self.height)?;
 
-        // Convert geographic coordinates to pixel coordinates
-        // geotransform: [top_left_x, pixel_width, 0, top_left_y, 0, -pixel_height]
-        let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as i32;
-        let pixel_max_x = ((max_lon - geotransform[0]) / geotransform[1]).ceil() as i32;
-        let pixel_min_y = ((max_lat - geotransform[3]) / geotransform[5]).floor() as i32;
-        let pixel_max_y = ((min_lat - geotransform[3]) / geotransform[5]).ceil() as i32;
+        // Based on bbox, we calculated the starting pixel position and the width, height of the
+        // window where to calculate pp
+        let pp_values = self.calculate_region_pp(
+            spatial_region.start_x,
+            spatial_region.start_y,
+            spatial_region.output_width,
+            spatial_region.output_height,
+        )?;
 
-        // Ensure bounds are within dataset dimensions and handle negative values
-        let start_x = pixel_min_x.max(0) as u32;
-        let end_x = pixel_max_x.max(0).min(self.width as i32) as u32;
-        let start_y = pixel_min_y.max(0) as u32;
-        let end_y = pixel_max_y.max(0).min(self.height as i32) as u32;
-
-        self.calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
+        spatial_region.create_output_dataset(sample_dataset, pp_values)
     }
 }
 
@@ -221,9 +286,44 @@ impl Display for OceanographicProcessor {
 mod tests {
     use super::*;
 
+    fn create_mock_data() -> HashMap<String, String> {
+        let mut mock_data = HashMap::new();
+        mock_data.insert(
+            "rrs_443".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "rrs_490".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "rrs_555".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "kd_490".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data.insert(
+            "sst".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
+                .to_string(),
+        );
+        mock_data.insert(
+            "chlor_a".to_string(),
+            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
+                .to_string(),
+        );
+        mock_data
+    }
+
     #[test]
     fn test_region_pp_vs_bbox_pp_equivalence() {
-        let rasters = OceanographicProcessor::create_mock_data();
+        let rasters = create_mock_data();
         let processor = match OceanographicProcessor::new(&rasters) {
             Ok(p) => p,
             Err(_) => {
@@ -235,8 +335,8 @@ mod tests {
         // Use Baffin Bay coordinates (same as main.rs) which should have data
         let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
 
-        // Calculate PP using bbox method first
-        let bbox_results = processor.calculate_pp_for_bbox(&bbox).unwrap();
+        // Calculate PP using bbox method first - now returns Dataset
+        let bbox_dataset = processor.calculate_pp_for_bbox(&bbox).unwrap();
 
         // Get dataset reference to calculate geotransform for region method
         let sample_dataset = processor.datasets.values().next().unwrap();
@@ -259,6 +359,14 @@ mod tests {
             .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
             .unwrap();
 
+        // Read data from bbox dataset for comparison
+        let bbox_band = bbox_dataset.rasterband(1).unwrap();
+        let (width, height) = bbox_dataset.raster_size();
+        let bbox_data = bbox_band
+            .read_as::<f32>((0, 0), (width, height), (width, height), None)
+            .unwrap();
+        let bbox_results: Vec<f32> = bbox_data.data().to_vec();
+
         // Results should be identical
         assert_eq!(region_results.len(), bbox_results.len());
 
@@ -275,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_bbox_coordinate_conversion() {
-        let rasters = OceanographicProcessor::create_mock_data();
+        let rasters = create_mock_data();
         let processor = match OceanographicProcessor::new(&rasters) {
             Ok(p) => p,
             Err(_) => return,
@@ -284,7 +392,7 @@ mod tests {
         // Use a smaller area within Baffin Bay that should have data
         let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
 
-        let bbox_results = processor.calculate_pp_for_bbox(&bbox).unwrap();
+        let bbox_dataset = processor.calculate_pp_for_bbox(&bbox).unwrap();
 
         // Get dataset reference to calculate corresponding pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();
@@ -305,6 +413,14 @@ mod tests {
         let region_results = processor
             .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
             .unwrap();
+
+        // Read data from bbox dataset
+        let bbox_band = bbox_dataset.rasterband(1).unwrap();
+        let (width, height) = bbox_dataset.raster_size();
+        let bbox_data = bbox_band
+            .read_as::<f32>((0, 0), (width, height), (width, height), None)
+            .unwrap();
+        let bbox_results: Vec<f32> = bbox_data.data().to_vec();
 
         // Should produce similar number of results
         let diff = (bbox_results.len() as i32 - region_results.len() as i32).abs();
