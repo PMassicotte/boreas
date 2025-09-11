@@ -12,15 +12,34 @@ Based on my experience, many of the current models for estimating aquatic primar
 
 ```mermaid
 graph TD
-    A[Configuration File] --> B[Find Satellite Data Files]
-    B --> C[Load MODIS Rasters<br/>Chlorophyll, SST, Kd_490]
-    C --> D[Apply VGPM Algorithm]
-    D --> E[Primary Production Output<br/>mg C m−2 d−1]
+    A[JSON Config Loading<br/>simple_config.json] --> B[Date Series Generation<br/>config/timestep.rs]
+    B --> C[File Pattern Discovery<br/>BatchProcessor::create_datasets]
+    C --> D[GDAL Dataset Loading<br/>oceanographic_model/processor.rs]
+    D --> E[Spatial Region Processing<br/>Bounding Box Clipping]
+    E --> F[Pixel-Level Processing<br/>oceanographic_model/pixel.rs]
+    F --> G[VGPM Algorithm<br/>Pbopt × Chl × Zeu calculation]
+    G --> H[GeoTIFF Output<br/>pp_YYYYMMDD.tif]
+    
+    I[Input Rasters] --> D
+    I --> J[Chlorophyll-a<br/>mg/m³]
+    I --> K[Sea Surface Temp<br/>°C]
+    I --> L[Kd_490<br/>m⁻¹]
+    J --> F
+    K --> F
+    L --> F
 
-    style A fill:#e1f5fe
-    style C fill:#f3e5f5
-    style D fill:#fff3e0
-    style E fill:#e8f5e8
+    style A fill:#ffffff,color:#000,stroke:#333
+    style B fill:#ffffff,color:#000,stroke:#333
+    style C fill:#ffffff,color:#000,stroke:#333
+    style D fill:#ffffff,color:#000,stroke:#333
+    style E fill:#ffffff,color:#000,stroke:#333
+    style F fill:#ffffff,color:#000,stroke:#333
+    style G fill:#ffffff,color:#000,stroke:#333
+    style H fill:#ffffff,color:#000,stroke:#333
+    style I fill:#ffffff,color:#000,stroke:#333
+    style J fill:#ffffff,color:#000,stroke:#333
+    style K fill:#ffffff,color:#000,stroke:#333
+    style L fill:#ffffff,color:#000,stroke:#333
 ```
 
 ## Reference Implementations
