@@ -10,6 +10,7 @@ pub enum ConfigError {
     Io(std::io::Error),
     Json(serde_json::Error),
     HourlyIncrement,
+    OutputDirectory(String),
 }
 
 impl fmt::Display for ConfigError {
@@ -22,6 +23,9 @@ impl fmt::Display for ConfigError {
             ConfigError::Json(e) => write!(f, "Failed to parse JSON: {}", e),
             ConfigError::HourlyIncrement => {
                 write!(f, "hourly_increment should one of 1, 2, 3, 4, 6, 8, 12")
+            }
+            ConfigError::OutputDirectory(path) => {
+                write!(f, "Output directory does not exist: {}", path)
             }
         }
     }

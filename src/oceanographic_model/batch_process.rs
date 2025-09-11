@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -131,12 +130,10 @@ impl BatchProcessor {
     }
 
     pub fn process(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-        // Get output directory from config, default to current directory
-        let default_dir = ".".to_string();
-        let output_dir = self.config.output_directory().unwrap_or(&default_dir);
-
-        // Create output directory if it doesn't exist
-        fs::create_dir_all(output_dir)?;
+        let output_dir = self
+            .config
+            .output_directory()
+            .ok_or("Output directory not configured")?;
 
         // Generate the date series to match with datasets
         let date_generator = DateTimeGenerator::new(self.config.clone());
