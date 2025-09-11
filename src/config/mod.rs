@@ -33,6 +33,7 @@ pub struct Config {
     hourly_increment: u8,
     bbox: Option<Bbox>,
     raster_templates: Option<Vec<RasterFile>>,
+    output_directory: Option<String>,
 }
 
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
@@ -50,6 +51,7 @@ impl<'de> Deserialize<'de> for Config {
             hourly_increment: u8,
             raster_templates: Option<Vec<RasterFile>>,
             bbox: Option<BboxHelper>,
+            output_directory: Option<String>,
         }
 
         #[derive(Deserialize)]
@@ -104,6 +106,7 @@ impl<'de> Deserialize<'de> for Config {
             hourly_increment: helper.hourly_increment,
             raster_templates: helper.raster_templates,
             bbox,
+            output_directory: helper.output_directory,
         })
     }
 }
@@ -122,6 +125,7 @@ impl Config {
             hourly_increment,
             raster_templates: None,
             bbox: None,
+            output_directory: None,
         }
     }
 
@@ -144,6 +148,10 @@ impl Config {
 
     pub fn bbox(&self) -> Option<&Bbox> {
         self.bbox.as_ref()
+    }
+
+    pub fn output_directory(&self) -> Option<&String> {
+        self.output_directory.as_ref()
     }
 
     fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
@@ -220,6 +228,7 @@ mod tests {
             hourly_increment: 1,
             raster_templates: None,
             bbox: None,
+            output_directory: None,
         };
 
         let new_date = config
@@ -241,6 +250,7 @@ mod tests {
             hourly_increment: 1,
             raster_templates: None,
             bbox: None,
+            output_directory: None,
         };
 
         let new_date = config
@@ -262,6 +272,7 @@ mod tests {
             hourly_increment: 1,
             raster_templates: None,
             bbox: None,
+            output_directory: None,
         };
 
         let new_date = config
@@ -283,6 +294,7 @@ mod tests {
             hourly_increment: 3,
             raster_templates: None,
             bbox: None,
+            output_directory: None,
         };
 
         let dates: Vec<NaiveDate> = config.collect();
