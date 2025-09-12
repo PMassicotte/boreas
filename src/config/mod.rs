@@ -46,14 +46,14 @@ impl<'de> Deserialize<'de> for Config {
     {
         #[derive(Deserialize)]
         struct ConfigHelper {
-            model_id: Option<String>,
+            model_id: String,
             start_date: String,
             end_date: String,
             frequency: TimeStep,
             hourly_increment: u8,
-            raster_templates: Option<Vec<RasterFile>>,
-            bbox: Option<BboxHelper>,
-            output_directory: Option<String>,
+            raster_templates: Vec<RasterFile>,
+            bbox: BboxHelper,
+            output_directory: String,
         }
 
         #[derive(Deserialize)]
@@ -86,21 +86,13 @@ impl<'de> Deserialize<'de> for Config {
             return Err(D::Error::custom(ConfigError::HourlyIncrement));
         }
 
-        // Validate model_id is required and not empty
-        let model_id = helper
-            .model_id
-            .ok_or_else(|| D::Error::custom("model_id is required"))?;
-        if model_id.trim().is_empty() {
+        // Validate model_id is not empty
+        if helper.model_id.trim().is_empty() {
             return Err(D::Error::custom("model_id cannot be empty"));
         }
 
-        // Validate raster_templates is required and validate each template
-        let raster_templates = helper
-            .raster_templates
-            .ok_or_else(|| D::Error::custom("raster_templates is required"))?;
-
         // Validate each raster template
-        for template in &raster_templates {
+        for template in &helper.raster_templates {
             if template.name.trim().is_empty() {
                 return Err(D::Error::custom("raster template name cannot be empty"));
             }
@@ -126,32 +118,31 @@ impl<'de> Deserialize<'de> for Config {
             }
         }
 
-        // Validate bbox is required
-        let bbox = helper
-            .bbox
-            .ok_or_else(|| D::Error::custom("bbox is required"))?;
-        let bbox = Bbox::new(bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax)
-            .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?;
+        // Validate bbox
+        let bbox = Bbox::new(
+            helper.bbox.xmin,
+            helper.bbox.xmax,
+            helper.bbox.ymin,
+            helper.bbox.ymax,
+        )
+        .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?;
 
-        // Validate output directory is required
-        let output_directory = helper
-            .output_directory
-            .ok_or_else(|| D::Error::custom("output_directory is required"))?;
-        if !Path::new(&output_directory).exists() {
+        // Validate output directory exists
+        if !Path::new(&helper.output_directory).exists() {
             return Err(D::Error::custom(ConfigError::OutputDirectory(
-                output_directory.clone(),
+                helper.output_directory.clone(),
             )));
         }
 
         Ok(Config {
-            model_id,
+            model_id: helper.model_id,
             start_date,
             end_date,
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
-            raster_templates,
+            raster_templates: helper.raster_templates,
             bbox,
-            output_directory,
+            output_directory: helper.output_directory,
         })
     }
 }
