@@ -9,14 +9,14 @@ mod utils;
 
 use config::Config;
 use oceanographic_model::batch_runner::BatchRunner;
-// use std::time::Instant;
+use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let start = Instant::now();
     println!("Starting oceanographic primary production processing...");
 
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
 
-    // Process datasets - now saves files immediately and returns file paths
     let processor = BatchRunner::new(config);
     let output_files = processor.process()?;
 
@@ -29,5 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  📁 {}", file);
     }
 
+    println!("Time elapsed {:>.2?}", Instant::now() - start);
     Ok(())
 }
