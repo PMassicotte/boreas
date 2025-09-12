@@ -24,11 +24,15 @@
     },
     "start_date": {
       "type": "string",
+      "minLength": 10,
+      "maxLength": 10,
       "format": "date",
       "description": "Start date in YYYY-MM-DD format"
     },
     "end_date": {
       "type": "string",
+      "minLength": 10,
+      "maxLength": 10,
       "format": "date",
       "description": "End date in YYYY-MM-DD format"
     },
@@ -41,6 +45,7 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 24,
+      "enum": [1, 2, 3, 4, 6, 8, 12],
       "description": "Hourly increment for processing"
     },
     "output_directory": {
