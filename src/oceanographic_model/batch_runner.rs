@@ -25,7 +25,6 @@ impl BatchRunner {
         let mut missing_dates = Vec::new();
 
         // Use DateTimeGenerator to generate the date series
-        // FIX: Pass config as ref
         let date_generator = DateTimeGenerator::new(config.clone());
         let dates = date_generator.generate_date_series();
         println!("Requested {} date periods: {:?}", dates.len(), dates);
