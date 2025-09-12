@@ -25,8 +25,6 @@ pub struct RasterFile {
     pub date_format: String,
 }
 
-// FIX: All should be validated in the Deserializer, so we do not have to use Option here in this
-// struct
 #[derive(Debug, Clone)]
 pub struct Config {
     model_id: String,
