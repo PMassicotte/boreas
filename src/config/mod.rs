@@ -98,23 +98,31 @@ impl<'de> Deserialize<'de> for Config {
         let raster_templates = helper
             .raster_templates
             .ok_or_else(|| D::Error::custom("raster_templates is required"))?;
-        
+
         // Validate each raster template
         for template in &raster_templates {
             if template.name.trim().is_empty() {
                 return Err(D::Error::custom("raster template name cannot be empty"));
             }
             if template.base_directory.trim().is_empty() {
-                return Err(D::Error::custom("raster template base_directory cannot be empty"));
+                return Err(D::Error::custom(
+                    "raster template base_directory cannot be empty",
+                ));
             }
             if template.filename_pattern.trim().is_empty() {
-                return Err(D::Error::custom("raster template filename_pattern cannot be empty"));
+                return Err(D::Error::custom(
+                    "raster template filename_pattern cannot be empty",
+                ));
             }
             if template.date_format.trim().is_empty() {
-                return Err(D::Error::custom("raster template date_format cannot be empty"));
+                return Err(D::Error::custom(
+                    "raster template date_format cannot be empty",
+                ));
             }
             if !template.filename_pattern.contains("{}") {
-                return Err(D::Error::custom("raster template filename_pattern must contain '{}' placeholder"));
+                return Err(D::Error::custom(
+                    "raster template filename_pattern must contain '{}' placeholder",
+                ));
             }
         }
 
@@ -149,31 +157,6 @@ impl<'de> Deserialize<'de> for Config {
 }
 
 impl Config {
-    #[allow(clippy::too_many_arguments)]
-    // FIX: Maybe remove this function, only used in one test, should only use from_file.
-    // Could create different template as json file and read them in tests instead?
-    pub fn new(
-        model_id: String,
-        start_date: NaiveDate,
-        end_date: NaiveDate,
-        frequency: TimeStep,
-        hourly_increment: u8,
-        bbox: Bbox,
-        raster_templates: Vec<RasterFile>,
-        output_directory: String,
-    ) -> Self {
-        Self {
-            model_id,
-            start_date,
-            end_date,
-            frequency,
-            hourly_increment,
-            raster_templates,
-            bbox,
-            output_directory,
-        }
-    }
-
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Config, ConfigError> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);

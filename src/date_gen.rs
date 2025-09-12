@@ -52,20 +52,36 @@ impl DateTimeGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::TimeStep;
     use chrono::{NaiveDate, Timelike};
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
 
     fn create_test_config() -> Config {
-        Config::new(
-            "Test".to_string(),
-            NaiveDate::from_ymd_opt(2023, 1, 1).unwrap(),
-            NaiveDate::from_ymd_opt(2023, 1, 2).unwrap(),
-            TimeStep::Daily,
-            6, // Every 6 hours
-            crate::bbox::Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
-            vec![],
-            "/tmp".to_string(),
-        )
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_config.json");
+        let mut file = File::create(&file_path).unwrap();
+
+        let config_data = r#"
+        {
+            "model_id": "Test",
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-02",
+            "frequency": "daily",
+            "hourly_increment": 6,
+            "raster_templates": [],
+            "bbox": {
+                "xmin": 0.0,
+                "xmax": 1.0,
+                "ymin": 0.0,
+                "ymax": 1.0
+            },
+            "output_directory": "/tmp"
+        }
+        "#;
+
+        file.write_all(config_data.as_bytes()).unwrap();
+        Config::from_file(file_path).unwrap()
     }
 
     #[test]
