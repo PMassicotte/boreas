@@ -9,7 +9,7 @@ use crate::oceanographic_model::OceanographicProcessor;
 
 #[derive(Debug)]
 pub struct BatchRunner {
-    datasets: Vec<HashMap<String, (String, String)>>,
+    datasets: Vec<HashMap<String, String>>,
     config: Config,
 }
 
@@ -38,7 +38,7 @@ impl BatchRunner {
             for template in raster_templates {
                 // Find files that match this template and contain this date
                 if let Some(matching_file) = Self::find_matching_file(template, date) {
-                    rasters.insert(template.name.clone(), matching_file);
+                    rasters.insert(template.layer_name.clone(), matching_file);
                 } else {
                     missing_templates.push(&template.name);
                 }
@@ -138,12 +138,12 @@ impl BatchRunner {
         };
 
         for entry in WalkDir::new(base_dir).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_file() {
-                if let Some(file_name) = entry.path().file_name() {
-                    let file_name_str = file_name.to_string_lossy();
-                    if regex.is_match(&file_name_str) {
-                        return Some(entry.path().to_string_lossy().to_string());
-                    }
+            if entry.file_type().is_file()
+                && let Some(file_name) = entry.path().file_name()
+            {
+                let file_name_str = file_name.to_string_lossy();
+                if regex.is_match(&file_name_str) {
+                    return Some(entry.path().to_string_lossy().to_string());
                 }
             }
         }
@@ -172,7 +172,7 @@ impl BatchRunner {
 
         // For each day, calculate pp and save the results in a geotiff
         for (index, raster_dataset) in self.datasets.iter().enumerate() {
-            let proc = OceanographicProcessor::new(raster_dataset)?;
+            let proc = OceanographicProcessor::new(raster_dataset, &self.config)?;
             let bbox = self.config.bbox();
             let dataset = proc.calculate_pp_for_bbox(bbox)?;
 

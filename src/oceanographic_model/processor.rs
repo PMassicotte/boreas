@@ -1,5 +1,6 @@
 use super::pixel::PixelData;
 use crate::bbox::Bbox;
+use crate::config::{Config, RasterFile};
 use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
 
@@ -124,12 +125,17 @@ impl SpatialRegion {
 pub struct OceanographicProcessor {
     // HashMap containing all the input datasets loaded by GDAL
     datasets: HashMap<String, Dataset>,
+    // Reference to config for name-to-layer_name mapping
+    raster_templates: Vec<RasterFile>,
     width: u32,
     height: u32,
 }
 
 impl OceanographicProcessor {
-    pub fn new(raster_files: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        raster_files: &HashMap<String, String>,
+        config: &Config,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut datasets = HashMap::new();
         let mut width = 0;
         let mut height = 0;
@@ -163,6 +169,7 @@ impl OceanographicProcessor {
 
         Ok(Self {
             datasets,
+            raster_templates: config.raster_templates().clone(),
             width,
             height,
         })
@@ -184,6 +191,7 @@ impl OceanographicProcessor {
         x: u32,
         y: u32,
     ) -> Result<Option<f32>, Box<dyn std::error::Error>> {
+        // dataset_name is the
         if let Some(dataset) = self.datasets.get(dataset_name) {
             let band = dataset.rasterband(1)?;
             let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
@@ -209,12 +217,24 @@ impl OceanographicProcessor {
     ) -> Result<Option<f32>, Box<dyn std::error::Error>> {
         let mut pixel = PixelData::new(x, y);
 
-        // Read data from each dataset for this pixel.
-        pixel.chlor_a = self.read_pixel_value("chlor_a", x, y)?;
-        pixel.sst = self.read_pixel_value("sst", x, y)?;
-        pixel.kd_490 = self.read_pixel_value("kd_490", x, y)?;
+        // Read data from each dataset for this pixel using config mapping
+        pixel.chlor_a = self.read_pixel_value(&self.get_layer_name("chlor_a"), x, y)?;
+        pixel.sst = self.read_pixel_value(&self.get_layer_name("sst"), x, y)?;
+        pixel.kd_490 = self.read_pixel_value(&self.get_layer_name("kd_490"), x, y)?;
 
         Ok(pixel.calculate_primary_production())
+    }
+
+    // Get the layer name for a given field name from config. For example, if the layer name in
+    // the nc file is Kd_490, it will retirn kd_490 (lower case). Useful when the layer name is
+    // not exactly matching the name of the expected name. I could use that to read rrs488 and
+    // assign that to rrs490
+    fn get_layer_name(&self, name: &str) -> String {
+        self.raster_templates
+            .iter()
+            .find(|template| template.name == name)
+            .map(|template| template.layer_name.clone())
+            .unwrap_or_else(|| name.to_string())
     }
 
     pub fn calculate_region_pp(
@@ -287,6 +307,83 @@ impl Display for OceanographicProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bbox::Bbox;
+    use crate::config::Config;
+    use std::fs;
+    use tempfile::tempdir;
+
+    fn create_mock_config() -> Config {
+        // Create a temporary directory for the output
+        let temp_dir = tempdir().unwrap();
+        let output_path = temp_dir.path().to_str().unwrap();
+
+        // Create the directory to avoid validation errors
+        fs::create_dir_all(output_path).unwrap();
+
+        let config_json = format!(
+            r#"{{
+            "model_id": "test_model",
+            "start_date": "2024-07-01",
+            "end_date": "2024-08-01", 
+            "frequency": "monthly",
+            "hourly_increment": 4,
+            "output_directory": "{}",
+            "bbox": {{
+                "xmin": -67.2,
+                "xmax": -58.7,
+                "ymin": 70.9,
+                "ymax": 73.3
+            }},
+            "raster_templates": [
+                {{
+                    "name": "rrs_443",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_443.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "Rrs_443"
+                }},
+                {{
+                    "name": "rrs_490",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_488.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "Rrs_488"
+                }},
+                {{
+                    "name": "rrs_555",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_555.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "Rrs_555"
+                }},
+                {{
+                    "name": "kd_490",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.KD.Kd_490.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "Kd_490"
+                }},
+                {{
+                    "name": "sst",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.SST.sst.4km.nc",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "sst"
+                }},
+                {{
+                    "name": "chlor_a",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.CHL.chlor_a.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "chlor_a"
+                }}
+            ]
+        }}"#,
+            output_path
+        );
+
+        serde_json::from_str(&config_json).unwrap()
+    }
 
     fn create_mock_data() -> HashMap<String, String> {
         let mut mock_data = HashMap::new();
@@ -326,7 +423,8 @@ mod tests {
     #[test]
     fn test_region_pp_vs_bbox_pp_equivalence() {
         let rasters = create_mock_data();
-        let processor = match OceanographicProcessor::new(&rasters) {
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
             Ok(p) => p,
             Err(_) => {
                 // Skip test if datasets can't be loaded (e.g., in CI environments)
@@ -374,19 +472,30 @@ mod tests {
 
         // Compare each value with small tolerance for floating point precision
         for (region_val, bbox_val) in region_results.iter().zip(bbox_results.iter()) {
-            assert!(
-                (region_val - bbox_val).abs() < 1e-6,
-                "Values differ: region={}, bbox={}",
-                region_val,
-                bbox_val
-            );
+            // Handle NaN values - both should be NaN or both should be finite and equal
+            if region_val.is_nan() && bbox_val.is_nan() {
+                continue; // Both NaN, this is expected for missing data
+            } else if region_val.is_finite() && bbox_val.is_finite() {
+                assert!(
+                    (region_val - bbox_val).abs() < 1e-6,
+                    "Values differ: region={}, bbox={}",
+                    region_val,
+                    bbox_val
+                );
+            } else {
+                panic!(
+                    "Inconsistent NaN handling: region={}, bbox={}",
+                    region_val, bbox_val
+                );
+            }
         }
     }
 
     #[test]
     fn test_bbox_coordinate_conversion() {
         let rasters = create_mock_data();
-        let processor = match OceanographicProcessor::new(&rasters) {
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
             Ok(p) => p,
             Err(_) => return,
         };
