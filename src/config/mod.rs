@@ -23,6 +23,7 @@ pub struct RasterFile {
     pub base_directory: String,
     pub filename_pattern: String,
     pub date_format: String,
+    pub layer_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +110,11 @@ impl<'de> Deserialize<'de> for Config {
             if template.date_format.trim().is_empty() {
                 return Err(D::Error::custom(
                     "raster template date_format cannot be empty",
+                ));
+            }
+            if template.layer_name.trim().is_empty() {
+                return Err(D::Error::custom(
+                    "raster template layer_name cannot be empty",
                 ));
             }
             if !template.filename_pattern.contains("{}") {
