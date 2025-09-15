@@ -9,7 +9,7 @@ use crate::oceanographic_model::OceanographicProcessor;
 
 #[derive(Debug)]
 pub struct BatchRunner {
-    datasets: Vec<HashMap<String, String>>,
+    datasets: Vec<HashMap<String, (String, String)>>,
     config: Config,
 }
 
@@ -91,6 +91,11 @@ impl BatchRunner {
         // Generate the expected filename by replacing {} with the formatted date
         let expected_filename = template.filename_pattern.replace("{}", &formatted_date);
 
+        // Check if pattern contains wildcards
+        if expected_filename.contains("*") {
+            return Self::search_with_wildcards(&template.base_directory, &expected_filename);
+        }
+
         // First try direct path (backwards compatibility)
         let direct_path = format!("{}/{}", template.base_directory, expected_filename);
         if Path::new(&direct_path).exists() {
@@ -113,6 +118,33 @@ impl BatchRunner {
                 && file_name.to_string_lossy() == filename
             {
                 return Some(entry.path().to_string_lossy().to_string());
+            }
+        }
+
+        None
+    }
+
+    /// Search for files that match a wildcard pattern
+    fn search_with_wildcards(base_dir: &str, pattern: &str) -> Option<String> {
+        if !Path::new(base_dir).exists() {
+            return None;
+        }
+
+        // Convert wildcard pattern to regex
+        let regex_pattern = pattern.replace("*", ".*");
+        let regex = match regex::Regex::new(&format!("^{}$", regex_pattern)) {
+            Ok(r) => r,
+            Err(_) => return None,
+        };
+
+        for entry in WalkDir::new(base_dir).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                if let Some(file_name) = entry.path().file_name() {
+                    let file_name_str = file_name.to_string_lossy();
+                    if regex.is_match(&file_name_str) {
+                        return Some(entry.path().to_string_lossy().to_string());
+                    }
+                }
             }
         }
 
