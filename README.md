@@ -19,7 +19,7 @@ graph TD
     E --> F[Pixel-Level Processing<br/>oceanographic_model/pixel.rs]
     F --> G[VGPM Algorithm<br/>Pbopt × Chl × Zeu calculation]
     G --> H[GeoTIFF Output<br/>pp_YYYYMMDD.tif]
-    
+
     I[Input Rasters] --> D
     I --> J[Chlorophyll-a<br/>mg/m³]
     I --> K[Sea Surface Temp<br/>°C]
@@ -40,6 +40,12 @@ graph TD
     style J fill:#ffffff,color:#000,stroke:#333
     style K fill:#ffffff,color:#000,stroke:#333
     style L fill:#ffffff,color:#000,stroke:#333
+```
+
+## Visualizing internal structure
+
+```bash
+cargo modules dependencies --lib --cfg-test --no-externs | dot -Tsvg >/tmp/graph.svg && xdg-open /tmp/graph.svg
 ```
 
 ## Reference Implementations
