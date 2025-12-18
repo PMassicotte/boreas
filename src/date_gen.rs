@@ -23,10 +23,7 @@ impl DateTimeGenerator {
 
         let mut datetimes = Vec::new();
 
-        // Clone config to use as iterator
-        let config_iter = self.config.clone();
-
-        for date in config_iter {
+        for date in self.config.dates() {
             let hours_in_day = 24 / self.config.hourly_increment() as u32;
 
             for hour_step in 0..hours_in_day {
@@ -43,9 +40,7 @@ impl DateTimeGenerator {
 
     #[allow(dead_code)]
     pub fn generate_date_series(&self) -> Vec<NaiveDate> {
-        let config_iter = self.config.clone();
-
-        config_iter.collect()
+        self.config.dates().collect()
     }
 }
 

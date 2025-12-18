@@ -38,6 +38,12 @@ pub struct Config {
     output_directory: String,
 }
 
+pub struct DateRange {
+    current: NaiveDate,
+    end: NaiveDate,
+    frequency: TimeStep,
+}
+
 // This function deserializes a Config object from a deserializer, ensuring the dates are valid and
 // in order, and the hourly increment is within an acceptable range.
 impl<'de> Deserialize<'de> for Config {
@@ -183,24 +189,32 @@ impl Config {
         &self.model_id
     }
 
-    fn increment_date(&self, current_date: NaiveDate) -> Result<NaiveDate, String> {
-        match self.frequency {
-            TimeStep::Daily => Ok(current_date + Duration::days(1)),
-            TimeStep::Weekly => Ok(current_date + Duration::weeks(1)),
-            TimeStep::Monthly => current_date
-                .checked_add_months(Months::new(1))
-                .ok_or_else(|| format!("Failed to add a month to date: {}", current_date)),
+    pub fn dates(&self) -> DateRange {
+        DateRange {
+            current: self.start_date,
+            end: self.end_date,
+            frequency: self.frequency,
         }
     }
 }
 
-impl Iterator for Config {
+fn increment_date(current_date: NaiveDate, frequency: TimeStep) -> Result<NaiveDate, String> {
+    match frequency {
+        TimeStep::Daily => Ok(current_date + Duration::days(1)),
+        TimeStep::Weekly => Ok(current_date + Duration::weeks(1)),
+        TimeStep::Monthly => current_date
+            .checked_add_months(Months::new(1))
+            .ok_or_else(|| format!("Failed to add a month to date: {}", current_date)),
+    }
+}
+
+impl Iterator for DateRange {
     type Item = NaiveDate;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.start_date <= self.end_date {
-            let current_date = self.start_date;
-            self.start_date = self.increment_date(self.start_date).ok()?;
+        if self.current <= self.end {
+            let current_date = self.current;
+            self.current = increment_date(self.current, self.frequency).ok()?;
             Some(current_date)
         } else {
             None
@@ -259,20 +273,11 @@ mod tests {
 
     #[test]
     fn test_increment_date_daily() {
-        let config = Config {
-            model_id: "test_model".to_string(),
-            start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
-            end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
-            frequency: TimeStep::Daily,
-            hourly_increment: 1,
-            raster_templates: vec![],
-            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
-            output_directory: "/tmp".to_string(),
-        };
-
-        let new_date = config
-            .increment_date(NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"))
-            .unwrap();
+        let new_date = increment_date(
+            NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
+            TimeStep::Daily,
+        )
+        .unwrap();
 
         assert_eq!(
             new_date,
@@ -282,20 +287,11 @@ mod tests {
 
     #[test]
     fn test_increment_date_weekly() {
-        let config = Config {
-            model_id: "test_model".to_string(),
-            start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
-            end_date: NaiveDate::from_ymd_opt(2023, 1, 10).expect("Invalid date"),
-            frequency: TimeStep::Weekly,
-            hourly_increment: 1,
-            raster_templates: vec![],
-            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
-            output_directory: "/tmp".to_string(),
-        };
-
-        let new_date = config
-            .increment_date(NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"))
-            .unwrap();
+        let new_date = increment_date(
+            NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
+            TimeStep::Weekly,
+        )
+        .unwrap();
 
         assert_eq!(
             new_date,
@@ -305,20 +301,11 @@ mod tests {
 
     #[test]
     fn test_increment_date_monthly() {
-        let config = Config {
-            model_id: "test_model".to_string(),
-            start_date: NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"),
-            end_date: NaiveDate::from_ymd_opt(2023, 12, 31).expect("Invalid date"),
-            frequency: TimeStep::Monthly,
-            hourly_increment: 1,
-            raster_templates: vec![],
-            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
-            output_directory: "/tmp".to_string(),
-        };
-
-        let new_date = config
-            .increment_date(NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"))
-            .unwrap();
+        let new_date = increment_date(
+            NaiveDate::from_ymd_opt(2023, 1, 31).expect("Invalid date"),
+            TimeStep::Monthly,
+        )
+        .unwrap();
 
         assert_eq!(
             new_date,
@@ -339,7 +326,7 @@ mod tests {
             output_directory: "/tmp".to_string(),
         };
 
-        let dates: Vec<NaiveDate> = config.collect();
+        let dates: Vec<NaiveDate> = config.dates().collect();
 
         assert_eq!(
             dates,
