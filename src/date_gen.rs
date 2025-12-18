@@ -15,8 +15,7 @@ impl DateTimeGenerator {
 
     #[allow(dead_code)]
     pub fn generate_datetime_series(&self) -> Vec<NaiveDateTime> {
-        let hourly_increment = self.config.hourly_increment();
-        if hourly_increment == 0 {
+        if self.config.hourly_increment() == 0 {
             eprintln!("Error: hourly_increment must be greater than 0 to avoid division by zero.");
             return Vec::new();
         }
