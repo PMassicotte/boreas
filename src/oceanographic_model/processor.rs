@@ -186,46 +186,6 @@ impl OceanographicProcessor {
         }
     }
 
-    fn read_pixel_value(
-        &self,
-        dataset_name: &str,
-        x: u32,
-        y: u32,
-    ) -> Result<Option<f32>, Box<dyn std::error::Error>> {
-        // dataset_name is the
-        if let Some(dataset) = self.datasets.get(dataset_name) {
-            let band = dataset.rasterband(1)?;
-            let buffer = band.read_as::<f32>((x as isize, y as isize), (1, 1), (1, 1), None)?;
-            let raw_value = buffer[(0, 0)];
-            let scale = band.scale().unwrap_or(1.0);
-            let missing_value = band.no_data_value();
-
-            if missing_value.is_some_and(|mv| raw_value == mv as f32) {
-                Ok(None)
-            } else {
-                Ok(Some(raw_value * scale as f32))
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    // Simple method to calculate primary production for a single pixel
-    pub fn calculate_pixel_pp(
-        &self,
-        x: u32,
-        y: u32,
-    ) -> Result<Option<f32>, Box<dyn std::error::Error>> {
-        let mut pixel = PixelData::new(x, y);
-
-        // Read data from each dataset for this pixel using config mapping
-        pixel.chlor_a = self.read_pixel_value(&self.get_layer_name("chlor_a"), x, y)?;
-        pixel.sst = self.read_pixel_value(&self.get_layer_name("sst"), x, y)?;
-        pixel.kd_490 = self.read_pixel_value(&self.get_layer_name("kd_490"), x, y)?;
-
-        Ok(pixel.calculate_primary_production())
-    }
-
     // Get the layer name for a given field name from config. For example, if the layer name in
     // the nc file is Kd_490, it will retirn kd_490 (lower case). Useful when the layer name is
     // not exactly matching the name of the expected name. I could use that to read rrs488 and
@@ -238,6 +198,45 @@ impl OceanographicProcessor {
             .unwrap_or_else(|| name.to_string())
     }
 
+    // Read an entire region of values from a dataset at once
+    fn read_region_values(
+        &self,
+        dataset_name: &str,
+        x_start: u32,
+        y_start: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<Option<f32>>, Box<dyn std::error::Error>> {
+        if let Some(dataset) = self.datasets.get(dataset_name) {
+            let band = dataset.rasterband(1)?;
+            let buffer: gdal::raster::Buffer<f32> = band.read_as(
+                (x_start as isize, y_start as isize),
+                (width as usize, height as usize),
+                (width as usize, height as usize),
+                None,
+            )?;
+
+            let scale = band.scale().unwrap_or(1.0);
+            let missing_value = band.no_data_value();
+
+            let values: Vec<Option<f32>> = buffer
+                .data()
+                .iter()
+                .map(|&raw_value| {
+                    if missing_value.is_some_and(|mv| raw_value == mv as f32) {
+                        None
+                    } else {
+                        Some(raw_value * scale as f32)
+                    }
+                })
+                .collect();
+
+            Ok(values)
+        } else {
+            Ok(vec![None; (width * height) as usize])
+        }
+    }
+
     pub fn calculate_region_pp(
         &self,
         x_start: u32,
@@ -245,16 +244,38 @@ impl OceanographicProcessor {
         width: u32,
         height: u32,
     ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        // Read entire regions for all three bands at once
+        let chlor_a_values = self.read_region_values(
+            &self.get_layer_name("chlor_a"),
+            x_start,
+            y_start,
+            width,
+            height,
+        )?;
+        let sst_values =
+            self.read_region_values(&self.get_layer_name("sst"), x_start, y_start, width, height)?;
+        let kd_490_values = self.read_region_values(
+            &self.get_layer_name("kd_490"),
+            x_start,
+            y_start,
+            width,
+            height,
+        )?;
+
+        // Process all pixels in memory
         let mut results = Vec::with_capacity((width * height) as usize);
 
-        for y in y_start..(y_start + height).min(self.height) {
-            for x in x_start..(x_start + width).min(self.width) {
-                let pp_value = match self.calculate_pixel_pp(x, y)? {
-                    Some(pp) => pp,
-                    None => f32::NAN, // Use NaN for missing/no-data pixels
-                };
-                results.push(pp_value);
-            }
+        for i in 0..(width * height) as usize {
+            let x = x_start + (i as u32 % width);
+            let y = y_start + (i as u32 / width);
+
+            let mut pixel = PixelData::new(x, y);
+            pixel.chlor_a = chlor_a_values[i];
+            pixel.sst = sst_values[i];
+            pixel.kd_490 = kd_490_values[i];
+
+            let pp_value = pixel.calculate_primary_production().unwrap_or(f32::NAN);
+            results.push(pp_value);
         }
 
         Ok(results)
