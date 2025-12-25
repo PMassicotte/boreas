@@ -58,7 +58,7 @@ impl SpatialRegion {
     ) -> Result<Dataset, Box<dyn std::error::Error>> {
         let mem_filename = "/vsimem/pp_output.tif";
         let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
-        let mut dataset = driver.create_with_band_type::<f32, _>(
+        let mut destination_dataset = driver.create_with_band_type::<f32, _>(
             mem_filename,
             self.output_width as usize,
             self.output_height as usize,
@@ -74,27 +74,28 @@ impl SpatialRegion {
             self.geotransform[5], // pixel height (negative)
         ];
 
-        dataset.set_geo_transform(&output_geotransform)?;
+        destination_dataset.set_geo_transform(&output_geotransform)?;
 
         if let Ok(spatial_ref) = sample_dataset.spatial_ref() {
-            dataset.set_spatial_ref(&spatial_ref)?;
+            destination_dataset.set_spatial_ref(&spatial_ref)?;
         }
 
         // Set dataset metadata
-        dataset.set_metadata_item("TIFFTAG_DOCUMENTNAME", "Primary Production", "")?;
-        dataset.set_metadata_item(
+        destination_dataset.set_metadata_item("TIFFTAG_DOCUMENTNAME", "Primary Production", "")?;
+        destination_dataset.set_metadata_item(
             "TIFFTAG_IMAGEDESCRIPTION",
             "Primary production calculated from satellite oceanographic data",
             "",
         )?;
 
-        dataset.set_metadata_item(
+        destination_dataset.set_metadata_item(
             "TIFFTAG_SOFTWARE",
             "Boreas - Oceanographic Processing Tool",
             "",
         )?;
 
-        let mut band = dataset.rasterband(1)?;
+        // Get the raster band and write data
+        let mut band = destination_dataset.rasterband(1)?;
 
         // Set band metadata
         band.set_description("Primary Production")?;
@@ -117,7 +118,7 @@ impl SpatialRegion {
             &mut buffer,
         )?;
 
-        Ok(dataset)
+        Ok(destination_dataset)
     }
 }
 
