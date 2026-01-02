@@ -11,9 +11,14 @@ use config::Config;
 use oceanographic_model::batch_runner::BatchRunner;
 use std::time::Instant;
 
+use colored::Colorize;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
-    println!("Starting oceanographic primary production processing...");
+    println!(
+        "{}",
+        "Starting oceanographic primary production processing...".bright_yellow()
+    );
 
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
 
