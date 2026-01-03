@@ -280,12 +280,10 @@ mod tests {
     use crate::config::Config;
     use crate::models::VgpmModel;
     use std::fs;
-    use tempfile::tempdir;
 
     fn create_mock_config() -> Config {
-        // Create a temporary directory for the output
-        let temp_dir = tempdir().unwrap();
-        let output_path = temp_dir.path().to_str().unwrap();
+        // Use /tmp for output directory
+        let output_path = "/tmp/boreas_test_output";
 
         // Create the directory to avoid validation errors
         fs::create_dir_all(output_path).unwrap();
