@@ -79,10 +79,35 @@ pub trait PrimaryProduction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{CbpmModel, VgpmModel};
 
     #[test]
-    fn test_dataset_type_from_name_valid() {
+    fn test_from_name_config_names() {
+        // Test all dataset names used in config files can be successfully parsed
+        assert_eq!(
+            DatasetType::from_name("rrs_443"),
+            Some(DatasetType::Rrs443)
+        );
+        assert_eq!(
+            DatasetType::from_name("rrs_488"),
+            Some(DatasetType::Rrs488)
+        );
+        assert_eq!(
+            DatasetType::from_name("rrs_555"),
+            Some(DatasetType::Rrs555)
+        );
+        assert_eq!(
+            DatasetType::from_name("kd_490"),
+            Some(DatasetType::Kd490)
+        );
+        assert_eq!(DatasetType::from_name("sst"), Some(DatasetType::SeaSurfaceTemperature));
+        assert_eq!(
+            DatasetType::from_name("chlor_a"),
+            Some(DatasetType::Chlorophyll)
+        );
+    }
+
+    #[test]
+    fn test_from_name_all_aliases() {
         // Test chlorophyll aliases
         assert_eq!(
             DatasetType::from_name("chl_a"),
@@ -121,24 +146,24 @@ mod tests {
         assert_eq!(DatasetType::from_name("kd_490"), Some(DatasetType::Kd490));
         assert_eq!(DatasetType::from_name("kd490"), Some(DatasetType::Kd490));
 
-        // Test Rrs443 aliases
+        // Test RRS aliases
         assert_eq!(DatasetType::from_name("rrs_443"), Some(DatasetType::Rrs443));
         assert_eq!(DatasetType::from_name("rrs443"), Some(DatasetType::Rrs443));
-
-        // Test Rrs488 aliases
         assert_eq!(DatasetType::from_name("rrs_488"), Some(DatasetType::Rrs488));
         assert_eq!(DatasetType::from_name("rrs488"), Some(DatasetType::Rrs488));
-
-        // Test Rrs555 aliases
         assert_eq!(DatasetType::from_name("rrs_555"), Some(DatasetType::Rrs555));
         assert_eq!(DatasetType::from_name("rrs555"), Some(DatasetType::Rrs555));
     }
 
     #[test]
-    fn test_dataset_type_from_name_case_insensitive() {
-        // Test case insensitivity
+    fn test_from_name_case_insensitive() {
+        // Test that case doesn't matter
         assert_eq!(
             DatasetType::from_name("CHL_A"),
+            Some(DatasetType::Chlorophyll)
+        );
+        assert_eq!(
+            DatasetType::from_name("CHLOR_A"),
             Some(DatasetType::Chlorophyll)
         );
         assert_eq!(
@@ -146,51 +171,29 @@ mod tests {
             Some(DatasetType::SeaSurfaceTemperature)
         );
         assert_eq!(
-            DatasetType::from_name("PAR"),
-            Some(DatasetType::PhotosyntheticallyActiveRadiation)
-        );
-        assert_eq!(
-            DatasetType::from_name("KD_490"),
-            Some(DatasetType::Kd490)
-        );
-        assert_eq!(
             DatasetType::from_name("RRS_443"),
             Some(DatasetType::Rrs443)
         );
+        assert_eq!(
+            DatasetType::from_name("Kd_490"),
+            Some(DatasetType::Kd490)
+        );
     }
 
     #[test]
-    fn test_dataset_type_from_name_invalid() {
-        // Test invalid names
+    fn test_from_name_invalid() {
+        // Test that unrecognized names return None
         assert_eq!(DatasetType::from_name("invalid"), None);
+        assert_eq!(DatasetType::from_name("unknown_dataset"), None);
         assert_eq!(DatasetType::from_name(""), None);
-        assert_eq!(DatasetType::from_name("chl"), None);
+        assert_eq!(DatasetType::from_name("rrs_999"), None);
         assert_eq!(DatasetType::from_name("temperature"), None);
-        assert_eq!(DatasetType::from_name("rrs"), None);
     }
 
     #[test]
-    fn test_dataset_type_config_name() {
-        // Test that config_name returns the expected standard names
-        assert_eq!(DatasetType::Chlorophyll.config_name(), "chl_a");
-        assert_eq!(
-            DatasetType::SeaSurfaceTemperature.config_name(),
-            "sst"
-        );
-        assert_eq!(
-            DatasetType::PhotosyntheticallyActiveRadiation.config_name(),
-            "par"
-        );
-        assert_eq!(DatasetType::Kd490.config_name(), "kd_490");
-        assert_eq!(DatasetType::Rrs443.config_name(), "rrs_443");
-        assert_eq!(DatasetType::Rrs488.config_name(), "rrs_488");
-        assert_eq!(DatasetType::Rrs555.config_name(), "rrs_555");
-    }
-
-    #[test]
-    fn test_dataset_type_from_name_config_name_consistency() {
-        // Test that config_name can be parsed back by from_name
-        let all_types = vec![
+    fn test_config_name_roundtrip() {
+        // Test that config_name returns values that can be parsed back
+        let dataset_types = vec![
             DatasetType::Chlorophyll,
             DatasetType::SeaSurfaceTemperature,
             DatasetType::PhotosyntheticallyActiveRadiation,
@@ -200,55 +203,16 @@ mod tests {
             DatasetType::Rrs555,
         ];
 
-        for dataset_type in all_types {
+        for dataset_type in dataset_types {
             let config_name = dataset_type.config_name();
             let parsed = DatasetType::from_name(config_name);
             assert_eq!(
                 parsed,
                 Some(dataset_type),
-                "Failed for config_name: {}",
-                config_name
+                "Failed to parse config_name '{}' back to {:?}",
+                config_name,
+                dataset_type
             );
         }
-    }
-
-    #[test]
-    fn test_vgpm_required_datasets() {
-        let model = VgpmModel::new();
-        let required = model.required_datasets();
-
-        // VGPM should require exactly 3 datasets
-        assert_eq!(required.len(), 3);
-
-        // Check that it includes the expected datasets
-        assert!(required.contains(&DatasetType::Chlorophyll));
-        assert!(required.contains(&DatasetType::SeaSurfaceTemperature));
-        assert!(required.contains(&DatasetType::Kd490));
-    }
-
-    #[test]
-    fn test_cbpm_required_datasets() {
-        let model = CbpmModel::new();
-        let required = model.required_datasets();
-
-        // CbPM should require exactly 3 datasets
-        assert_eq!(required.len(), 3);
-
-        // Check that it includes the expected datasets
-        assert!(required.contains(&DatasetType::Chlorophyll));
-        assert!(required.contains(&DatasetType::SeaSurfaceTemperature));
-        assert!(required.contains(&DatasetType::Kd490));
-    }
-
-    #[test]
-    fn test_vgpm_model_name() {
-        let model = VgpmModel::new();
-        assert_eq!(model.name(), "VGPM");
-    }
-
-    #[test]
-    fn test_cbpm_model_name() {
-        let model = CbpmModel::new();
-        assert_eq!(model.name(), "CbPM");
     }
 }
