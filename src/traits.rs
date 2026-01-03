@@ -46,6 +46,10 @@ impl DatasetType {
     }
 }
 
+/// Trait for implementing primary production calculation algorithms.
+///
+/// Implementations should process oceanographic datasets and return
+/// primary production values in units of mg C m⁻² d⁻¹.
 pub trait PrimaryProduction {
     /// Calculate primary production for a specified region
     ///
