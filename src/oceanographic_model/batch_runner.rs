@@ -17,14 +17,17 @@ pub type DatasetCollection = Vec<DatasetFiles>;
 
 #[derive(Debug)]
 pub struct BatchRunner<'a> {
-    datasets: DatasetCollection,
+    dataset_collection: DatasetCollection,
     config: &'a Config,
 }
 
 impl<'a> BatchRunner<'a> {
     pub fn new(config: &'a Config) -> Self {
-        let datasets = Self::create_period_datasets(config).unwrap();
-        BatchRunner { datasets, config }
+        let datasets: DatasetCollection = Self::create_period_datasets(config).unwrap();
+        BatchRunner {
+            dataset_collection: datasets,
+            config,
+        }
     }
 
     /// Creates datasets by finding actual files that match the date patterns
@@ -186,19 +189,12 @@ impl<'a> BatchRunner<'a> {
         let mut output_files = Vec::new();
 
         // For each date, calculate pp using the specified algorithm
-        for (index, raster_dataset) in self.datasets.iter().enumerate() {
+        for (raster_dataset, date) in self.dataset_collection.iter().zip(&dates) {
             let proc = OceanographicProcessor::new(raster_dataset, self.config)?;
             let bbox = self.config.bbox();
             let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
 
             // Generate output filename using the corresponding date
-            let date = dates.get(index).ok_or_else(|| {
-                BoreasError::Config(format!(
-                    "Date index {} out of bounds for output filename generation",
-                    index
-                ))
-            })?;
-
             let date_str = date.format("%Y%m%d").to_string();
             let filename = format!(
                 "{}/boreas_daily_primary_production_{}_{}.tif",

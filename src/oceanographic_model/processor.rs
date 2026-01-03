@@ -220,6 +220,7 @@ impl OceanographicProcessor {
         height: u32,
     ) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
         println!("Executing: {}", algo.name());
+
         algo.calculate(&self.datasets, x_start, y_start, width, height)
             .map_err(|e| -> Box<dyn std::error::Error> { e.into() })
     }
