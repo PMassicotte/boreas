@@ -282,11 +282,11 @@ mod tests {
     use std::fs;
 
     fn create_mock_config() -> Config {
-        // Use /tmp for output directory
-        let output_path = "/tmp/boreas_test_output";
+        // Use system temp directory for output
+        let output_path = std::env::temp_dir().join("boreas_test_output");
 
         // Create the directory to avoid validation errors
-        fs::create_dir_all(output_path).unwrap();
+        fs::create_dir_all(&output_path).unwrap();
 
         let config_json = format!(
             r#"{{
@@ -327,7 +327,7 @@ mod tests {
                 }}
             ]
         }}"#,
-            output_path
+            output_path.to_str().unwrap()
         );
 
         serde_json::from_str(&config_json).unwrap()
