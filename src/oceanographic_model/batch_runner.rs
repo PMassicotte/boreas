@@ -5,12 +5,19 @@ use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::date_gen::DateTimeGenerator;
+use crate::error::BoreasError;
 use crate::oceanographic_model::OceanographicProcessor;
 use crate::traits::PrimaryProduction;
 
+/// Type alias for dataset collection: maps dataset name to (file_path, layer_name)
+pub type DatasetFiles = HashMap<String, (String, String)>;
+
+/// Type alias for a collection of datasets across multiple time periods
+pub type DatasetCollection = Vec<DatasetFiles>;
+
 #[derive(Debug)]
 pub struct BatchRunner {
-    datasets: Vec<HashMap<String, (String, String)>>, // (file_path, layer_name)
+    datasets: DatasetCollection,
     config: Config,
 }
 
@@ -23,7 +30,7 @@ impl BatchRunner {
     /// Creates datasets by finding actual files that match the date patterns
     fn create_period_datasets(
         config: &Config,
-    ) -> Result<Vec<HashMap<String, (String, String)>>, String> {
+    ) -> Result<DatasetCollection, Box<dyn std::error::Error>> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
@@ -69,12 +76,13 @@ impl BatchRunner {
 
         // Error if we couldn't find files for some requested dates
         if !missing_dates.is_empty() {
-            panic!(
-                "ERROR: Requested {} days of data, but could only find files for {} days. Missing data for dates: {:?}",
+            return Err(BoreasError::Config(format!(
+                "Incomplete dataset: requested {} days but found {} days. Missing data for dates: {:?}",
                 dates.len(),
                 datasets.len(),
                 missing_dates
-            );
+            ))
+            .into());
         }
 
         println!(

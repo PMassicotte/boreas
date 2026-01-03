@@ -6,6 +6,7 @@
   "frequency": "monthly",
   "hourly_increment": 4,
   "output_directory": "./output",
+  "algorithm": "vgpm",
   "bbox": {
     "xmin": -67.2,
     "xmax": -58.7,

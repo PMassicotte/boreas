@@ -1,6 +1,7 @@
 mod bbox;
 mod config;
 mod date_gen;
+mod error;
 mod iop;
 mod lut;
 mod models;
@@ -10,9 +11,10 @@ mod traits;
 mod utils;
 
 use config::Config;
-use models::VgpmModel;
+use models::{CbpmModel, VgpmModel};
 use oceanographic_model::batch_runner::BatchRunner;
 use std::time::Instant;
+use traits::PrimaryProduction;
 
 use colored::Colorize;
 
@@ -24,19 +26,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
-    let runner = BatchRunner::new(config);
+    let runner = BatchRunner::new(config.clone());
 
-    // Run with VGPM model (default)
-    // TODO: Maybe add the model to use via config file?
-    println!("\n{}", "Running VGPM model...".bright_cyan());
-    let vgpm = VgpmModel::new();
-    let output_files = runner.run_algo(&vgpm)?;
+    // Select algorithm from config
+    let model: Box<dyn PrimaryProduction> = match config.algorithm.as_str() {
+        "vgpm" => {
+            println!("\n{}", "Running VGPM model...".bright_cyan());
+            Box::new(VgpmModel::new())
+        }
+        "cbpm" => {
+            println!("\n{}", "Running CbPM model...".bright_cyan());
+            Box::new(CbpmModel::new())
+        }
+        _ => {
+            return Err(format!("Unknown algorithm: {}", config.algorithm).into());
+        }
+    };
 
-    // Uncomment to run with CbPM model instead:
-    // (Also add `use models::CbpmModel;` to imports)
-    // println!("\n{}", "Running CbPM model...".bright_cyan());
-    // let cbpm = CbpmModel::new();
-    // let output_files = runner.run_algo(&cbpm)?;
+    let output_files = runner.run_algo(model.as_ref())?;
 
     println!(
         "\n✅ Processing completed! Generated {} output files:",

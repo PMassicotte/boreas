@@ -1,7 +1,7 @@
 use crate::bbox::Bbox;
 use crate::config::Config;
-use crate::models::VgpmModel;
-use crate::traits::PrimaryProduction;
+use crate::error::BoreasError;
+use crate::traits::{DatasetType, PrimaryProduction};
 use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
 
@@ -57,7 +57,15 @@ impl SpatialRegion {
         sample_dataset: &Dataset,
         pp_values: Vec<f32>,
     ) -> Result<Dataset, Box<dyn std::error::Error>> {
-        let mem_filename = "/vsimem/pp_output.tif";
+        // Use unique filename to avoid conflicts
+        let mem_filename = format!(
+            "/vsimem/pp_output_{}_{}.tif",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
         let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
         let mut destination_dataset = driver.create_with_band_type::<f32, _>(
             mem_filename,
@@ -125,8 +133,8 @@ impl SpatialRegion {
 
 #[derive(Debug)]
 pub struct OceanographicProcessor {
-    // HashMap containing all the input datasets loaded by GDAL
-    datasets: HashMap<String, Dataset>,
+    // HashMap containing all the input datasets loaded by GDAL, keyed by DatasetType
+    datasets: HashMap<DatasetType, Dataset>,
     width: u32,
     height: u32,
 }
@@ -141,6 +149,11 @@ impl OceanographicProcessor {
         let mut height = 0;
 
         for (name, (path, layer_name)) in raster_files {
+            // Convert string name to DatasetType
+            let dataset_type = DatasetType::from_name(name).ok_or_else(|| {
+                BoreasError::Config(format!("Unknown dataset type: {}", name))
+            })?;
+
             // Validate file type before processing
             let path_obj = Path::new(path);
             if !super::is_supported_file_type(path_obj) {
@@ -159,11 +172,21 @@ impl OceanographicProcessor {
                     }
                     // Verify all rasters have same dimensions
                     if w as u32 != width || h as u32 != height {
-                        eprintln!("Warning: {} has different dimensions", name);
+                        return Err(BoreasError::DimensionMismatch(format!(
+                            "{} has dimensions {}x{} but expected {}x{}",
+                            name, w, h, width, height
+                        ))
+                        .into());
                     }
-                    datasets.insert(name.to_string(), dataset);
+                    datasets.insert(dataset_type, dataset);
                 }
-                Err(e) => eprintln!("Could not load {}: {}", name, e),
+                Err(e) => {
+                    return Err(BoreasError::Config(format!(
+                        "Could not load dataset {}: {}",
+                        name, e
+                    ))
+                    .into());
+                }
             }
         }
 
@@ -236,16 +259,6 @@ impl OceanographicProcessor {
         spatial_region.create_output_dataset(sample_dataset, pp_values)
     }
 
-    /// Calculate PP for a geographic bounding box (uses VGPM by default)
-    /// Kept for backward compatibility
-    #[allow(dead_code)]
-    pub fn calculate_pp_for_bbox(
-        &self,
-        bbox: &Bbox,
-    ) -> Result<Dataset, Box<dyn std::error::Error>> {
-        let vgpm = VgpmModel::new();
-        self.calculate_pp_for_bbox_with_model(bbox, &vgpm)
-    }
 }
 
 impl Display for OceanographicProcessor {

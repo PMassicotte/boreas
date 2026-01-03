@@ -9,6 +9,7 @@
     "frequency",
     "hourly_increment",
     "output_directory",
+    "algorithm",
     "bbox",
     "raster_templates"
   ],
@@ -53,6 +54,11 @@
       "minLength": 1,
       "description": "Directory path for output files"
     },
+    "algorithm": {
+      "type": "string",
+      "enum": ["vgpm", "cbpm"],
+      "description": "Algorithm to be used for processing"
+    },
     "bbox": {
       "type": "object",
       "required": ["xmin", "xmax", "ymin", "ymax"],
@@ -93,7 +99,8 @@
           "name",
           "base_directory",
           "filename_pattern",
-          "date_format"
+          "date_format",
+          "layer_name"
         ],
         "properties": {
           "name": {
@@ -116,6 +123,11 @@
             "type": "string",
             "enum": ["YYYYMMDD", "YYYY-MM-DD", "YYYYDDD"],
             "description": "Date format for filename substitution"
+          },
+          "layer_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the data layer within the raster file"
           }
         },
         "additionalProperties": false

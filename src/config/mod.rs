@@ -29,11 +29,12 @@ pub struct RasterFile {
 #[derive(Debug, Clone)]
 pub struct Config {
     model_id: String,
-    start_date: NaiveDate,
-    end_date: NaiveDate,
+    pub algorithm: String,
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
-    bbox: Bbox,
+    pub bbox: Bbox,
     raster_templates: Vec<RasterFile>,
     output_directory: String,
 }
@@ -54,6 +55,8 @@ impl<'de> Deserialize<'de> for Config {
         #[derive(Deserialize)]
         struct ConfigHelper {
             model_id: String,
+            #[serde(default = "default_algorithm")]
+            algorithm: String,
             start_date: String,
             end_date: String,
             frequency: TimeStep,
@@ -61,6 +64,10 @@ impl<'de> Deserialize<'de> for Config {
             raster_templates: Vec<RasterFile>,
             bbox: BboxHelper,
             output_directory: String,
+        }
+
+        fn default_algorithm() -> String {
+            "vgpm".to_string()
         }
 
         #[derive(Deserialize)]
@@ -96,6 +103,15 @@ impl<'de> Deserialize<'de> for Config {
         // Validate model_id is not empty
         if helper.model_id.trim().is_empty() {
             return Err(D::Error::custom("model_id cannot be empty"));
+        }
+
+        // Validate algorithm is valid
+        let valid_algorithms = ["vgpm", "cbpm"];
+        if !valid_algorithms.contains(&helper.algorithm.to_lowercase().as_str()) {
+            return Err(D::Error::custom(format!(
+                "Invalid algorithm '{}'. Must be one of: {:?}",
+                helper.algorithm, valid_algorithms
+            )));
         }
 
         // Validate each raster template
@@ -148,6 +164,7 @@ impl<'de> Deserialize<'de> for Config {
 
         Ok(Config {
             model_id: helper.model_id,
+            algorithm: helper.algorithm.to_lowercase(),
             start_date,
             end_date,
             frequency: helper.frequency,
@@ -317,6 +334,7 @@ mod tests {
     fn test_iterator() {
         let config = Config {
             model_id: "test_model".to_string(),
+            algorithm: "vgpm".to_string(),
             start_date: NaiveDate::from_ymd_opt(2023, 1, 1).expect("Invalid date"),
             end_date: NaiveDate::from_ymd_opt(2023, 1, 3).expect("Invalid date"),
             frequency: TimeStep::Daily,

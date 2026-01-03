@@ -1,4 +1,5 @@
-use crate::traits::PrimaryProduction;
+use crate::error::{BoreasError, Result};
+use crate::traits::{DatasetType, PrimaryProduction};
 use crate::utils::read_window_as_f32;
 use gdal::Dataset;
 use std::collections::HashMap;
@@ -26,18 +27,32 @@ impl PrimaryProduction for VgpmModel {
         "VGPM"
     }
 
+    fn required_datasets(&self) -> Vec<DatasetType> {
+        vec![
+            DatasetType::Chlorophyll,
+            DatasetType::SeaSurfaceTemperature,
+            DatasetType::Kd490,
+        ]
+    }
+
     fn calculate(
         &self,
-        datasets: &HashMap<String, Dataset>,
+        datasets: &HashMap<DatasetType, Dataset>,
         x_start: u32,
         y_start: u32,
         width: u32,
         height: u32,
-    ) -> Result<Vec<f64>, String> {
+    ) -> Result<Vec<f64>> {
         // Get required datasets
-        let chl_ds = datasets.get("chlor_a").ok_or("Missing chlor_a dataset")?;
-        let sst_ds = datasets.get("sst").ok_or("Missing sst dataset")?;
-        let kd_ds = datasets.get("kd_490").ok_or("Missing kd_490 dataset")?;
+        let chl_ds = datasets
+            .get(&DatasetType::Chlorophyll)
+            .ok_or_else(|| BoreasError::MissingDataset("Chlorophyll".to_string()))?;
+        let sst_ds = datasets
+            .get(&DatasetType::SeaSurfaceTemperature)
+            .ok_or_else(|| BoreasError::MissingDataset("SeaSurfaceTemperature".to_string()))?;
+        let kd_ds = datasets
+            .get(&DatasetType::Kd490)
+            .ok_or_else(|| BoreasError::MissingDataset("Kd490".to_string()))?;
 
         let num_pixels = (width * height) as usize;
 
@@ -47,21 +62,33 @@ impl PrimaryProduction for VgpmModel {
             y_start as isize,
             width as usize,
             height as usize,
-        )?;
+        )
+        .map_err(|e| BoreasError::Calculation {
+            model: "VGPM".to_string(),
+            reason: e,
+        })?;
         let sst_data = read_window_as_f32(
             sst_ds,
             x_start as isize,
             y_start as isize,
             width as usize,
             height as usize,
-        )?;
+        )
+        .map_err(|e| BoreasError::Calculation {
+            model: "VGPM".to_string(),
+            reason: e,
+        })?;
         let kd_data = read_window_as_f32(
             kd_ds,
             x_start as isize,
             y_start as isize,
             width as usize,
             height as usize,
-        )?;
+        )
+        .map_err(|e| BoreasError::Calculation {
+            model: "VGPM".to_string(),
+            reason: e,
+        })?;
 
         let mut results = Vec::with_capacity(num_pixels);
 
