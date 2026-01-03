@@ -70,7 +70,8 @@ mod tests {
                 "ymin": 0.0,
                 "ymax": 1.0
             },
-            "output_directory": "/tmp"
+            "output_directory": "/tmp",
+            "algorithm": "vgpm"
         }
         "#;
 
