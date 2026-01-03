@@ -1,6 +1,7 @@
-use super::pixel::PixelData;
 use crate::bbox::Bbox;
-use crate::config::{Config, RasterFile};
+use crate::config::Config;
+use crate::models::VgpmModel;
+use crate::traits::PrimaryProduction;
 use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
 
@@ -126,30 +127,28 @@ impl SpatialRegion {
 pub struct OceanographicProcessor {
     // HashMap containing all the input datasets loaded by GDAL
     datasets: HashMap<String, Dataset>,
-    // Reference to config for name-to-layer_name mapping
-    raster_templates: Vec<RasterFile>,
     width: u32,
     height: u32,
 }
 
 impl OceanographicProcessor {
     pub fn new(
-        raster_files: &HashMap<String, String>,
-        config: &Config,
+        raster_files: &HashMap<String, (String, String)>,
+        _config: &Config,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut datasets = HashMap::new();
         let mut width = 0;
         let mut height = 0;
 
-        for (name, path) in raster_files {
+        for (name, (path, layer_name)) in raster_files {
             // Validate file type before processing
-            let path_obj = Path::new(&path);
+            let path_obj = Path::new(path);
             if !super::is_supported_file_type(path_obj) {
                 return Err(format!("Unsupported file type for {}: {}", name, path).into());
             }
 
             // Automatically detect file format and create appropriate GDAL path
-            let gdal_path = Self::detect_file_format_and_path(path, name);
+            let gdal_path = Self::detect_file_format_and_path(path, layer_name);
 
             match Dataset::open(&gdal_path) {
                 Ok(dataset) => {
@@ -170,7 +169,6 @@ impl OceanographicProcessor {
 
         Ok(Self {
             datasets,
-            raster_templates: config.raster_templates().clone(),
             width,
             height,
         })
@@ -186,101 +184,6 @@ impl OceanographicProcessor {
         }
     }
 
-    // Get the layer name for a given field name from config. For example, if the layer name in
-    // the nc file is Kd_490, it will retirn kd_490 (lower case). Useful when the layer name is
-    // not exactly matching the name of the expected name. I could use that to read rrs488 and
-    // assign that to rrs490
-    fn get_layer_name(&self, name: &str) -> String {
-        self.raster_templates
-            .iter()
-            .find(|template| template.name == name)
-            .map(|template| template.layer_name.clone())
-            .unwrap_or_else(|| name.to_string())
-    }
-
-    // Read an entire region of values from a dataset at once
-    fn read_region_values(
-        &self,
-        dataset_name: &str,
-        x_start: u32,
-        y_start: u32,
-        width: u32,
-        height: u32,
-    ) -> Result<Vec<Option<f32>>, Box<dyn std::error::Error>> {
-        if let Some(dataset) = self.datasets.get(dataset_name) {
-            let band = dataset.rasterband(1)?;
-            let buffer: gdal::raster::Buffer<f32> = band.read_as(
-                (x_start as isize, y_start as isize),
-                (width as usize, height as usize),
-                (width as usize, height as usize),
-                None,
-            )?;
-
-            let scale = band.scale().unwrap_or(1.0);
-            let missing_value = band.no_data_value();
-
-            let values: Vec<Option<f32>> = buffer
-                .data()
-                .iter()
-                .map(|&raw_value| {
-                    if missing_value.is_some_and(|mv| raw_value == mv as f32) {
-                        None
-                    } else {
-                        Some(raw_value * scale as f32)
-                    }
-                })
-                .collect();
-
-            Ok(values)
-        } else {
-            Ok(vec![None; (width * height) as usize])
-        }
-    }
-
-    pub fn calculate_region_pp(
-        &self,
-        x_start: u32,
-        y_start: u32,
-        width: u32,
-        height: u32,
-    ) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-        // Read entire regions for all three bands at once
-        let chlor_a_values = self.read_region_values(
-            &self.get_layer_name("chlor_a"),
-            x_start,
-            y_start,
-            width,
-            height,
-        )?;
-        let sst_values =
-            self.read_region_values(&self.get_layer_name("sst"), x_start, y_start, width, height)?;
-        let kd_490_values = self.read_region_values(
-            &self.get_layer_name("kd_490"),
-            x_start,
-            y_start,
-            width,
-            height,
-        )?;
-
-        // Process all pixels in memory
-        let mut results = Vec::with_capacity((width * height) as usize);
-
-        for i in 0..(width * height) as usize {
-            let x = x_start + (i as u32 % width);
-            let y = y_start + (i as u32 / width);
-
-            let mut pixel = PixelData::new(x, y);
-            pixel.chlor_a = chlor_a_values[i];
-            pixel.sst = sst_values[i];
-            pixel.kd_490 = kd_490_values[i];
-
-            let pp_value = pixel.calculate_primary_production().unwrap_or(f32::NAN);
-            results.push(pp_value);
-        }
-
-        Ok(results)
-    }
-
     #[allow(dead_code)]
     pub fn get_valid_pixel_count(&self) -> usize {
         self.width as usize * self.height as usize
@@ -291,26 +194,57 @@ impl OceanographicProcessor {
         (self.width, self.height)
     }
 
-    // Calculate PP for a geographic bounding box
-    pub fn calculate_pp_for_bbox(
+    /// Run a primary production algorithm for a specific region using the trait-based approach
+    pub fn run_algo(
+        &self,
+        algo: &dyn PrimaryProduction,
+        x_start: u32,
+        y_start: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+        println!("Executing: {}", algo.name());
+        algo.calculate(&self.datasets, x_start, y_start, width, height)
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })
+    }
+
+    /// Calculate PP for a geographic bounding box using a trait-based model
+    pub fn calculate_pp_for_bbox_with_model(
         &self,
         bbox: &Bbox,
+        algo: &dyn PrimaryProduction,
     ) -> Result<Dataset, Box<dyn std::error::Error>> {
+        // Get geotransform from one of the datasets (assuming all have same geotransform). This
+        // will be used as template for output dataset
         let sample_dataset = self.datasets.values().next().ok_or("No datasets loaded")?;
         let geotransform = sample_dataset.geo_transform()?;
 
         let spatial_region = SpatialRegion::new(bbox, &geotransform, self.width, self.height)?;
 
-        // Based on bbox, we calculated the starting pixel position and the width, height of the
-        // window where to calculate pp
-        let pp_values = self.calculate_region_pp(
+        // Calculate PP using the trait-based model
+        let pp_values_f64 = self.run_algo(
+            algo,
             spatial_region.start_x,
             spatial_region.start_y,
             spatial_region.output_width,
             spatial_region.output_height,
         )?;
 
+        // Convert f64 to f32 for the output dataset
+        let pp_values: Vec<f32> = pp_values_f64.iter().map(|&v| v as f32).collect();
+
         spatial_region.create_output_dataset(sample_dataset, pp_values)
+    }
+
+    /// Calculate PP for a geographic bounding box (uses VGPM by default)
+    /// Kept for backward compatibility
+    #[allow(dead_code)]
+    pub fn calculate_pp_for_bbox(
+        &self,
+        bbox: &Bbox,
+    ) -> Result<Dataset, Box<dyn std::error::Error>> {
+        let vgpm = VgpmModel::new();
+        self.calculate_pp_for_bbox_with_model(bbox, &vgpm)
     }
 }
 
@@ -322,247 +256,6 @@ impl Display for OceanographicProcessor {
             self.datasets.len(),
             self.width,
             self.height
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::bbox::Bbox;
-    use crate::config::Config;
-    use std::fs;
-    use tempfile::tempdir;
-
-    fn create_mock_config() -> Config {
-        // Create a temporary directory for the output
-        let temp_dir = tempdir().unwrap();
-        let output_path = temp_dir.path().to_str().unwrap();
-
-        // Create the directory to avoid validation errors
-        fs::create_dir_all(output_path).unwrap();
-
-        let config_json = format!(
-            r#"{{
-            "model_id": "test_model",
-            "start_date": "2024-07-01",
-            "end_date": "2024-08-01", 
-            "frequency": "monthly",
-            "hourly_increment": 4,
-            "output_directory": "{}",
-            "bbox": {{
-                "xmin": -67.2,
-                "xmax": -58.7,
-                "ymin": 70.9,
-                "ymax": 73.3
-            }},
-            "raster_templates": [
-                {{
-                    "name": "rrs_443",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_443.4km.cog.tif",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "Rrs_443"
-                }},
-                {{
-                    "name": "rrs_490",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_488.4km.cog.tif",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "Rrs_488"
-                }},
-                {{
-                    "name": "rrs_555",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.RRS.Rrs_555.4km.cog.tif",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "Rrs_555"
-                }},
-                {{
-                    "name": "kd_490",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.KD.Kd_490.4km.cog.tif",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "Kd_490"
-                }},
-                {{
-                    "name": "sst",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.SST.sst.4km.nc",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "sst"
-                }},
-                {{
-                    "name": "chlor_a",
-                    "base_directory": "./data/geotiff/modis_aqua/",
-                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.CHL.chlor_a.4km.cog.tif",
-                    "date_format": "YYYYMMDD",
-                    "layer_name": "chlor_a"
-                }}
-            ]
-        }}"#,
-            output_path
-        );
-
-        serde_json::from_str(&config_json).unwrap()
-    }
-
-    fn create_mock_data() -> HashMap<String, String> {
-        let mut mock_data = HashMap::new();
-        mock_data.insert(
-            "rrs_443".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_443.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "rrs_490".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_488.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "rrs_555".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.RRS.Rrs_555.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "kd_490".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data.insert(
-            "sst".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
-                .to_string(),
-        );
-        mock_data.insert(
-            "chlor_a".to_string(),
-            "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
-                .to_string(),
-        );
-        mock_data
-    }
-
-    #[test]
-    fn test_region_pp_vs_bbox_pp_equivalence() {
-        let rasters = create_mock_data();
-        let config = create_mock_config();
-        let processor = match OceanographicProcessor::new(&rasters, &config) {
-            Ok(p) => p,
-            Err(_) => {
-                // Skip test if datasets can't be loaded (e.g., in CI environments)
-                return;
-            }
-        };
-
-        // Use Baffin Bay coordinates (same as main.rs) which should have data
-        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
-
-        // Calculate PP using bbox method first - now returns Dataset
-        let bbox_dataset = processor.calculate_pp_for_bbox(&bbox).unwrap();
-
-        // Get dataset reference to calculate geotransform for region method
-        let sample_dataset = processor.datasets.values().next().unwrap();
-        let geotransform = sample_dataset.geo_transform().unwrap();
-
-        // Convert bbox coordinates to pixel coordinates for region method
-        let pixel_min_x = ((-67.2 - geotransform[0]) / geotransform[1]).floor() as i32;
-        let pixel_max_x = ((-58.7 - geotransform[0]) / geotransform[1]).ceil() as i32;
-        let pixel_min_y = ((73.3 - geotransform[3]) / geotransform[5]).floor() as i32;
-        let pixel_max_y = ((70.9 - geotransform[3]) / geotransform[5]).ceil() as i32;
-
-        // Ensure bounds are within dataset dimensions
-        let start_x = pixel_min_x.max(0) as u32;
-        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
-        let start_y = pixel_min_y.max(0) as u32;
-        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
-
-        // Calculate PP using region method
-        let region_results = processor
-            .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
-            .unwrap();
-
-        // Read data from bbox dataset for comparison
-        let bbox_band = bbox_dataset.rasterband(1).unwrap();
-        let (width, height) = bbox_dataset.raster_size();
-        let bbox_data = bbox_band
-            .read_as::<f32>((0, 0), (width, height), (width, height), None)
-            .unwrap();
-        let bbox_results: Vec<f32> = bbox_data.data().to_vec();
-
-        // Results should be identical
-        assert_eq!(region_results.len(), bbox_results.len());
-
-        // Compare each value with small tolerance for floating point precision
-        for (region_val, bbox_val) in region_results.iter().zip(bbox_results.iter()) {
-            // Handle NaN values - both should be NaN or both should be finite and equal
-            if region_val.is_nan() && bbox_val.is_nan() {
-                continue; // Both NaN, this is expected for missing data
-            } else if region_val.is_finite() && bbox_val.is_finite() {
-                assert!(
-                    (region_val - bbox_val).abs() < 1e-6,
-                    "Values differ: region={}, bbox={}",
-                    region_val,
-                    bbox_val
-                );
-            } else {
-                panic!(
-                    "Inconsistent NaN handling: region={}, bbox={}",
-                    region_val, bbox_val
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_bbox_coordinate_conversion() {
-        let rasters = create_mock_data();
-        let config = create_mock_config();
-        let processor = match OceanographicProcessor::new(&rasters, &config) {
-            Ok(p) => p,
-            Err(_) => return,
-        };
-
-        // Use a smaller area within Baffin Bay that should have data
-        let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
-
-        let bbox_dataset = processor.calculate_pp_for_bbox(&bbox).unwrap();
-
-        // Get dataset reference to calculate corresponding pixel coordinates
-        let sample_dataset = processor.datasets.values().next().unwrap();
-        let geotransform = sample_dataset.geo_transform().unwrap();
-
-        // Convert bbox coordinates to pixel coordinates for region method
-        let pixel_min_x = ((-67.0 - geotransform[0]) / geotransform[1]).floor() as i32;
-        let pixel_max_x = ((-60.0 - geotransform[0]) / geotransform[1]).ceil() as i32;
-        let pixel_min_y = ((72.0 - geotransform[3]) / geotransform[5]).floor() as i32;
-        let pixel_max_y = ((71.0 - geotransform[3]) / geotransform[5]).ceil() as i32;
-
-        // Ensure bounds are within dataset dimensions
-        let start_x = pixel_min_x.max(0) as u32;
-        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
-        let start_y = pixel_min_y.max(0) as u32;
-        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
-
-        let region_results = processor
-            .calculate_region_pp(start_x, start_y, end_x - start_x, end_y - start_y)
-            .unwrap();
-
-        // Read data from bbox dataset
-        let bbox_band = bbox_dataset.rasterband(1).unwrap();
-        let (width, height) = bbox_dataset.raster_size();
-        let bbox_data = bbox_band
-            .read_as::<f32>((0, 0), (width, height), (width, height), None)
-            .unwrap();
-        let bbox_results: Vec<f32> = bbox_data.data().to_vec();
-
-        // Should produce similar number of results
-        let diff = (bbox_results.len() as i32 - region_results.len() as i32).abs();
-        assert!(
-            bbox_results.len() == region_results.len(),
-            "The number of produced PP values are not the same: bbox_results.len() = {}, region_results.len() = {}, diff = {}",
-            bbox_results.len(),
-            region_results.len(),
-            diff
         )
     }
 }

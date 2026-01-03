@@ -6,10 +6,11 @@ use walkdir::WalkDir;
 use crate::config::Config;
 use crate::date_gen::DateTimeGenerator;
 use crate::oceanographic_model::OceanographicProcessor;
+use crate::traits::PrimaryProduction;
 
 #[derive(Debug)]
 pub struct BatchRunner {
-    datasets: Vec<HashMap<String, String>>,
+    datasets: Vec<HashMap<String, (String, String)>>, // (file_path, layer_name)
     config: Config,
 }
 
@@ -20,7 +21,9 @@ impl BatchRunner {
     }
 
     /// Creates datasets by finding actual files that match the date patterns
-    fn create_period_datasets(config: &Config) -> Result<Vec<HashMap<String, String>>, String> {
+    fn create_period_datasets(
+        config: &Config,
+    ) -> Result<Vec<HashMap<String, (String, String)>>, String> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
@@ -38,7 +41,10 @@ impl BatchRunner {
             for template in raster_templates {
                 // Find files that match this template and contain this date
                 if let Some(matching_file) = Self::find_matching_file(template, date) {
-                    rasters.insert(template.layer_name.clone(), matching_file);
+                    rasters.insert(
+                        template.name.clone(),
+                        (matching_file, template.layer_name.clone()),
+                    );
                 } else {
                     missing_templates.push(&template.name);
                 }
@@ -161,7 +167,11 @@ impl BatchRunner {
         }
     }
 
-    pub fn process(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    /// Run a primary production algorithm on all dates in the batch
+    pub fn run_algo(
+        &self,
+        algo: &dyn PrimaryProduction,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let output_dir = self.config.output_directory();
 
         // Generate the date series to match with datasets
@@ -170,11 +180,11 @@ impl BatchRunner {
 
         let mut output_files = Vec::new();
 
-        // For each day, calculate pp and save the results in a geotiff
+        // For each date, calculate pp using the specified algorithm
         for (index, raster_dataset) in self.datasets.iter().enumerate() {
             let proc = OceanographicProcessor::new(raster_dataset, &self.config)?;
             let bbox = self.config.bbox();
-            let dataset = proc.calculate_pp_for_bbox(bbox)?;
+            let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
 
             // Generate output filename using the corresponding date
             let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds

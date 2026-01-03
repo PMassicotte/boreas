@@ -1,6 +1,5 @@
 use std::path::Path;
 pub mod batch_runner;
-pub mod pixel;
 pub mod processor;
 
 pub use processor::OceanographicProcessor;
