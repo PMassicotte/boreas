@@ -30,7 +30,7 @@ impl<'a> BatchRunner<'a> {
     /// Creates datasets by finding actual files that match the date patterns
     fn create_period_datasets(
         config: &Config,
-    ) -> Result<DatasetCollection, Box<dyn std::error::Error>> {
+    ) -> Result<DatasetCollection, BoreasError> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
@@ -81,8 +81,7 @@ impl<'a> BatchRunner<'a> {
                 dates.len(),
                 datasets.len(),
                 missing_dates
-            ))
-            .into());
+            )));
         }
 
         println!(
