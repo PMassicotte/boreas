@@ -4,6 +4,7 @@ use crate::error::BoreasError;
 use crate::traits::{DatasetType, PrimaryProduction};
 use gdal::{Dataset, Metadata};
 use std::{collections::HashMap, fmt::Display, path::Path};
+use uuid::Uuid;
 
 struct SpatialRegion {
     start_x: u32,
@@ -57,15 +58,8 @@ impl SpatialRegion {
         sample_dataset: &Dataset,
         pp_values: Vec<f32>,
     ) -> Result<Dataset, Box<dyn std::error::Error>> {
-        // Use unique filename to avoid conflicts
-        let mem_filename = format!(
-            "/vsimem/pp_output_{}_{}.tif",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
+        // Use UUID for guaranteed uniqueness
+        let mem_filename = format!("/vsimem/pp_output_{}.tif", Uuid::new_v4());
         let driver = gdal::DriverManager::get_driver_by_name("GTiff")?;
         let mut destination_dataset = driver.create_with_band_type::<f32, _>(
             mem_filename,
