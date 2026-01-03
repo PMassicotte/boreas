@@ -1,7 +1,11 @@
 pub mod bbox;
 pub mod config;
 pub mod date_gen;
+pub mod error;
 pub mod iop;
 pub mod lut;
+pub mod models;
 pub mod oceanographic_model;
 pub mod sat_bands;
+pub mod traits;
+pub mod utils;

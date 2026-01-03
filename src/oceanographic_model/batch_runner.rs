@@ -5,27 +5,35 @@ use walkdir::WalkDir;
 
 use crate::config::Config;
 use crate::date_gen::DateTimeGenerator;
+use crate::error::BoreasError;
 use crate::oceanographic_model::OceanographicProcessor;
+use crate::traits::PrimaryProduction;
+
+/// Type alias for dataset collection: maps dataset name to (file_path, layer_name)
+pub type DatasetFiles = HashMap<String, (String, String)>;
+
+/// Type alias for a collection of datasets across multiple time periods
+pub type DatasetCollection = Vec<DatasetFiles>;
 
 #[derive(Debug)]
-pub struct BatchRunner {
-    datasets: Vec<HashMap<String, String>>,
-    config: Config,
+pub struct BatchRunner<'a> {
+    datasets: DatasetCollection,
+    config: &'a Config,
 }
 
-impl BatchRunner {
-    pub fn new(config: Config) -> Self {
-        let datasets = Self::create_period_datasets(&config).unwrap();
+impl<'a> BatchRunner<'a> {
+    pub fn new(config: &'a Config) -> Self {
+        let datasets = Self::create_period_datasets(config).unwrap();
         BatchRunner { datasets, config }
     }
 
     /// Creates datasets by finding actual files that match the date patterns
-    fn create_period_datasets(config: &Config) -> Result<Vec<HashMap<String, String>>, String> {
+    fn create_period_datasets(config: &Config) -> Result<DatasetCollection, BoreasError> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
         // Use DateTimeGenerator to generate the date series
-        let date_generator = DateTimeGenerator::new(config.clone());
+        let date_generator = DateTimeGenerator::new(config);
         let dates = date_generator.generate_date_series();
         println!("Requested {} date periods: {:?}", dates.len(), dates);
 
@@ -38,7 +46,10 @@ impl BatchRunner {
             for template in raster_templates {
                 // Find files that match this template and contain this date
                 if let Some(matching_file) = Self::find_matching_file(template, date) {
-                    rasters.insert(template.layer_name.clone(), matching_file);
+                    rasters.insert(
+                        template.name.clone(),
+                        (matching_file, template.layer_name.clone()),
+                    );
                 } else {
                     missing_templates.push(&template.name);
                 }
@@ -63,12 +74,12 @@ impl BatchRunner {
 
         // Error if we couldn't find files for some requested dates
         if !missing_dates.is_empty() {
-            panic!(
-                "ERROR: Requested {} days of data, but could only find files for {} days. Missing data for dates: {:?}",
+            return Err(BoreasError::Config(format!(
+                "Incomplete dataset: requested {} days but found {} days. Missing data for dates: {:?}",
                 dates.len(),
                 datasets.len(),
                 missing_dates
-            );
+            )));
         }
 
         println!(
@@ -161,20 +172,24 @@ impl BatchRunner {
         }
     }
 
-    pub fn process(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    /// Run a primary production algorithm on all dates in the batch
+    pub fn run_algo(
+        &self,
+        algo: &dyn PrimaryProduction,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let output_dir = self.config.output_directory();
 
         // Generate the date series to match with datasets
-        let date_generator = DateTimeGenerator::new(self.config.clone());
+        let date_generator = DateTimeGenerator::new(self.config);
         let dates = date_generator.generate_date_series();
 
         let mut output_files = Vec::new();
 
-        // For each day, calculate pp and save the results in a geotiff
+        // For each date, calculate pp using the specified algorithm
         for (index, raster_dataset) in self.datasets.iter().enumerate() {
-            let proc = OceanographicProcessor::new(raster_dataset, &self.config)?;
+            let proc = OceanographicProcessor::new(raster_dataset, self.config)?;
             let bbox = self.config.bbox();
-            let dataset = proc.calculate_pp_for_bbox(bbox)?;
+            let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
 
             // Generate output filename using the corresponding date
             let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds

@@ -66,3 +66,23 @@ pub fn print_dataset_statistics(datasets: &[Dataset]) -> Result<(), Box<dyn std:
 
     Ok(())
 }
+
+// NOTE: This is assuming single band datasets for simplicity
+pub fn read_window_as_f32(
+    ds: &gdal::Dataset,
+    x: isize,
+    y: isize,
+    w: usize,
+    h: usize,
+) -> Result<Vec<f32>, String> {
+    let band = ds.rasterband(1).map_err(|e| e.to_string())?;
+    let buf: gdal::raster::Buffer<f32> = band
+        .read_as((x, y), (w, h), (w, h), None)
+        .map_err(|e| e.to_string())?;
+
+    // Apply scale factor if present
+    let scale = band.scale().unwrap_or(1.0) as f32;
+    let data: Vec<f32> = buf.data().iter().map(|&v| v * scale).collect();
+
+    Ok(data)
+}
