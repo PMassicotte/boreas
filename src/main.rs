@@ -10,8 +10,8 @@ mod sat_bands;
 mod traits;
 mod utils;
 
+use crate::models::{CbpmModel, VgpmModel};
 use config::Config;
-use models::{CbpmModel, VgpmModel};
 use oceanographic_model::batch_runner::BatchRunner;
 use std::time::Instant;
 use traits::PrimaryProduction;

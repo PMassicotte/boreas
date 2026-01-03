@@ -144,9 +144,8 @@ impl OceanographicProcessor {
 
         for (name, (path, layer_name)) in raster_files {
             // Convert string name to DatasetType
-            let dataset_type = DatasetType::from_name(name).ok_or_else(|| {
-                BoreasError::Config(format!("Unknown dataset type: {}", name))
-            })?;
+            let dataset_type = DatasetType::from_name(name)
+                .ok_or_else(|| BoreasError::Config(format!("Unknown dataset type: {}", name)))?;
 
             // Validate file type before processing
             let path_obj = Path::new(path);
@@ -252,7 +251,6 @@ impl OceanographicProcessor {
 
         spatial_region.create_output_dataset(sample_dataset, pp_values)
     }
-
 }
 
 impl Display for OceanographicProcessor {
@@ -408,7 +406,10 @@ mod tests {
         );
         let dataset = result.unwrap();
         let (width, height) = dataset.raster_size();
-        assert!(width > 0 && height > 0, "Output dataset should have valid dimensions");
+        assert!(
+            width > 0 && height > 0,
+            "Output dataset should have valid dimensions"
+        );
     }
 
     #[test]
@@ -428,7 +429,9 @@ mod tests {
         let vgpm = VgpmModel::new();
 
         // Calculate PP using bbox method
-        let bbox_dataset = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm).unwrap();
+        let bbox_dataset = processor
+            .calculate_pp_for_bbox_with_model(&bbox, &vgpm)
+            .unwrap();
 
         // Get geotransform to calculate pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();
@@ -476,10 +479,11 @@ mod tests {
             if region_val.is_nan() && bbox_val.is_nan() {
                 matching_values += 1;
                 continue;
-            } else if region_val.is_finite() && bbox_val.is_finite() {
-                if (region_val - bbox_val).abs() < 1e-4 {
-                    matching_values += 1;
-                }
+            } else if region_val.is_finite()
+                && bbox_val.is_finite()
+                && (region_val - bbox_val).abs() < 1e-4
+            {
+                matching_values += 1;
             }
         }
 
@@ -505,7 +509,9 @@ mod tests {
         let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
         let vgpm = VgpmModel::new();
 
-        let bbox_dataset = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm).unwrap();
+        let bbox_dataset = processor
+            .calculate_pp_for_bbox_with_model(&bbox, &vgpm)
+            .unwrap();
 
         // Get geotransform to calculate pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();

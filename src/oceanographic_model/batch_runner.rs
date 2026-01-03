@@ -28,9 +28,7 @@ impl<'a> BatchRunner<'a> {
     }
 
     /// Creates datasets by finding actual files that match the date patterns
-    fn create_period_datasets(
-        config: &Config,
-    ) -> Result<DatasetCollection, BoreasError> {
+    fn create_period_datasets(config: &Config) -> Result<DatasetCollection, BoreasError> {
         let mut datasets = Vec::new();
         let mut missing_dates = Vec::new();
 
@@ -189,7 +187,7 @@ impl<'a> BatchRunner<'a> {
 
         // For each date, calculate pp using the specified algorithm
         for (index, raster_dataset) in self.datasets.iter().enumerate() {
-            let proc = OceanographicProcessor::new(raster_dataset, &self.config)?;
+            let proc = OceanographicProcessor::new(raster_dataset, self.config)?;
             let bbox = self.config.bbox();
             let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
 
