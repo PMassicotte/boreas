@@ -11,7 +11,7 @@ fn main() {
 
     println!("{:#?}", config);
 
-    let generator = DateTimeGenerator::new(config.clone());
+    let generator = DateTimeGenerator::new(&config);
     let datetime_series = generator.generate_datetime_series();
 
     println!("\nGenerated {} datetime points:", datetime_series.len());

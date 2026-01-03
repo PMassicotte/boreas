@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let config = Config::from_file("./data/config/simple_config.json").unwrap();
-    let runner = BatchRunner::new(config.clone());
+    let runner = BatchRunner::new(&config);
 
     // Select algorithm from config
     let model: Box<dyn PrimaryProduction> = match config.algorithm.as_str() {

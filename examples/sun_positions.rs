@@ -12,7 +12,7 @@ fn main() {
         }
     };
 
-    let generator = DateTimeGenerator::new(config.clone());
+    let generator = DateTimeGenerator::new(&config);
     let datetime_series = generator.generate_datetime_series();
 
     for dt in datetime_series {

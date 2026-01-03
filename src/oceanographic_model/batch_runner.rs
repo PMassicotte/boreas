@@ -16,14 +16,14 @@ pub type DatasetFiles = HashMap<String, (String, String)>;
 pub type DatasetCollection = Vec<DatasetFiles>;
 
 #[derive(Debug)]
-pub struct BatchRunner {
+pub struct BatchRunner<'a> {
     datasets: DatasetCollection,
-    config: Config,
+    config: &'a Config,
 }
 
-impl BatchRunner {
-    pub fn new(config: Config) -> Self {
-        let datasets = Self::create_period_datasets(&config).unwrap();
+impl<'a> BatchRunner<'a> {
+    pub fn new(config: &'a Config) -> Self {
+        let datasets = Self::create_period_datasets(config).unwrap();
         BatchRunner { datasets, config }
     }
 
@@ -35,7 +35,7 @@ impl BatchRunner {
         let mut missing_dates = Vec::new();
 
         // Use DateTimeGenerator to generate the date series
-        let date_generator = DateTimeGenerator::new(config.clone());
+        let date_generator = DateTimeGenerator::new(config);
         let dates = date_generator.generate_date_series();
         println!("Requested {} date periods: {:?}", dates.len(), dates);
 
@@ -183,7 +183,7 @@ impl BatchRunner {
         let output_dir = self.config.output_directory();
 
         // Generate the date series to match with datasets
-        let date_generator = DateTimeGenerator::new(self.config.clone());
+        let date_generator = DateTimeGenerator::new(self.config);
         let dates = date_generator.generate_date_series();
 
         let mut output_files = Vec::new();

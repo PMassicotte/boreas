@@ -55,7 +55,6 @@ impl<'de> Deserialize<'de> for Config {
         #[derive(Deserialize)]
         struct ConfigHelper {
             model_id: String,
-            #[serde(default = "default_algorithm")]
             algorithm: String,
             start_date: String,
             end_date: String,
@@ -64,10 +63,6 @@ impl<'de> Deserialize<'de> for Config {
             raster_templates: Vec<RasterFile>,
             bbox: BboxHelper,
             output_directory: String,
-        }
-
-        fn default_algorithm() -> String {
-            "vgpm".to_string()
         }
 
         #[derive(Deserialize)]
@@ -267,7 +262,8 @@ mod tests {
             "ymin": 0.0,
             "ymax": 1.0
         },
-        "output_directory": "/tmp"
+        "output_directory": "/tmp",
+        "algorithm": "vgpm"
     }
     "#;
 

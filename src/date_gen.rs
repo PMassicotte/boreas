@@ -3,13 +3,13 @@ use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 
 #[allow(dead_code)]
-pub struct DateTimeGenerator {
-    config: Config,
+pub struct DateTimeGenerator<'a> {
+    config: &'a Config,
 }
 
-impl DateTimeGenerator {
+impl<'a> DateTimeGenerator<'a> {
     #[allow(dead_code)]
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: &'a Config) -> Self {
         Self { config }
     }
 
@@ -70,7 +70,8 @@ mod tests {
                 "ymin": 0.0,
                 "ymax": 1.0
             },
-            "output_directory": "/tmp"
+            "output_directory": "/tmp",
+            "algorithm": "vgpm"
         }
         "#;
 
@@ -81,7 +82,7 @@ mod tests {
     #[test]
     fn test_generate_datetime_series() {
         let config = create_test_config();
-        let generator = DateTimeGenerator::new(config);
+        let generator = DateTimeGenerator::new(&config);
         let series = generator.generate_datetime_series();
 
         // Should have 2 days * 4 time points per day (every 6 hours)
