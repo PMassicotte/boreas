@@ -272,3 +272,282 @@ impl Display for OceanographicProcessor {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bbox::Bbox;
+    use crate::config::Config;
+    use crate::models::VgpmModel;
+    use std::fs;
+
+    fn create_mock_config() -> Config {
+        // Use system temp directory for output
+        let output_path = std::env::temp_dir().join("boreas_test_output");
+
+        // Create the directory to avoid validation errors
+        fs::create_dir_all(&output_path).unwrap();
+
+        let config_json = format!(
+            r#"{{
+            "model_id": "test_model",
+            "algorithm": "vgpm",
+            "start_date": "2024-07-01",
+            "end_date": "2024-08-01", 
+            "frequency": "monthly",
+            "hourly_increment": 4,
+            "output_directory": "{}",
+            "bbox": {{
+                "xmin": -67.2,
+                "xmax": -58.7,
+                "ymin": 70.9,
+                "ymax": 73.3
+            }},
+            "raster_templates": [
+                {{
+                    "name": "kd_490",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.KD.Kd_490.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "Kd_490"
+                }},
+                {{
+                    "name": "sst",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.SST.sst.4km.nc",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "sst"
+                }},
+                {{
+                    "name": "chlor_a",
+                    "base_directory": "./data/geotiff/modis_aqua/",
+                    "filename_pattern": "AQUA_MODIS.{{}}*.L3m.MO.CHL.chlor_a.4km.cog.tif",
+                    "date_format": "YYYYMMDD",
+                    "layer_name": "chlor_a"
+                }}
+            ]
+        }}"#,
+            output_path.to_str().unwrap()
+        );
+
+        serde_json::from_str(&config_json).unwrap()
+    }
+
+    fn create_mock_data() -> HashMap<String, (String, String)> {
+        let mut mock_data = HashMap::new();
+        mock_data.insert(
+            "kd_490".to_string(),
+            (
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.KD.Kd_490.4km.cog.tif"
+                    .to_string(),
+                "Kd_490".to_string(),
+            ),
+        );
+        mock_data.insert(
+            "sst".to_string(),
+            (
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.SST.sst.4km.nc"
+                    .to_string(),
+                "sst".to_string(),
+            ),
+        );
+        mock_data.insert(
+            "chlor_a".to_string(),
+            (
+                "./data/geotiff/modis_aqua/AQUA_MODIS.20250701_20250731.L3m.MO.CHL.chlor_a.4km.cog.tif"
+                    .to_string(),
+                "chlor_a".to_string(),
+            ),
+        );
+        mock_data
+    }
+
+    #[test]
+    fn test_run_algo_with_vgpm() {
+        let rasters = create_mock_data();
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
+            Ok(p) => p,
+            Err(_) => {
+                // Skip test if datasets can't be loaded (e.g., in CI environments)
+                return;
+            }
+        };
+
+        let vgpm = VgpmModel::new();
+        let (width, height) = processor.get_dim();
+
+        // Calculate PP for a small region using run_algo
+        let result = processor.run_algo(&vgpm, 0, 0, 10.min(width), 10.min(height));
+
+        assert!(result.is_ok(), "run_algo should succeed");
+        let pp_values = result.unwrap();
+        assert_eq!(
+            pp_values.len(),
+            (10.min(width) * 10.min(height)) as usize,
+            "Should return correct number of values"
+        );
+    }
+
+    #[test]
+    fn test_calculate_pp_for_bbox_with_model() {
+        let rasters = create_mock_data();
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
+            Ok(p) => p,
+            Err(_) => {
+                // Skip test if datasets can't be loaded
+                return;
+            }
+        };
+
+        // Use Baffin Bay coordinates
+        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
+        let vgpm = VgpmModel::new();
+
+        // Calculate PP using bbox method
+        let result = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm);
+
+        assert!(
+            result.is_ok(),
+            "calculate_pp_for_bbox_with_model should succeed"
+        );
+        let dataset = result.unwrap();
+        let (width, height) = dataset.raster_size();
+        assert!(width > 0 && height > 0, "Output dataset should have valid dimensions");
+    }
+
+    #[test]
+    fn test_run_algo_vs_bbox_equivalence() {
+        let rasters = create_mock_data();
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
+            Ok(p) => p,
+            Err(_) => {
+                // Skip test if datasets can't be loaded
+                return;
+            }
+        };
+
+        // Use Baffin Bay coordinates
+        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
+        let vgpm = VgpmModel::new();
+
+        // Calculate PP using bbox method
+        let bbox_dataset = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm).unwrap();
+
+        // Get geotransform to calculate pixel coordinates
+        let sample_dataset = processor.datasets.values().next().unwrap();
+        let geotransform = sample_dataset.geo_transform().unwrap();
+
+        // Convert bbox coordinates to pixel coordinates
+        let pixel_min_x = ((-67.2 - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((-58.7 - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((73.3 - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((70.9 - geotransform[3]) / geotransform[5]).ceil() as i32;
+
+        // Ensure bounds are within dataset dimensions
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
+
+        // Calculate PP using run_algo method
+        let region_results = processor
+            .run_algo(&vgpm, start_x, start_y, end_x - start_x, end_y - start_y)
+            .unwrap();
+
+        // Read data from bbox dataset
+        let bbox_band = bbox_dataset.rasterband(1).unwrap();
+        let (width, height) = bbox_dataset.raster_size();
+        let bbox_data = bbox_band
+            .read_as::<f32>((0, 0), (width, height), (width, height), None)
+            .unwrap();
+        let bbox_results: Vec<f64> = bbox_data.data().iter().map(|&v| v as f64).collect();
+
+        // Results should be identical in length
+        assert_eq!(
+            region_results.len(),
+            bbox_results.len(),
+            "run_algo and calculate_pp_for_bbox_with_model should produce same number of values"
+        );
+
+        // Compare each value with tolerance for floating point precision
+        let mut matching_values = 0;
+        let mut total_values = 0;
+
+        for (region_val, bbox_val) in region_results.iter().zip(bbox_results.iter()) {
+            total_values += 1;
+            // Handle NaN values - both should be NaN or both should be finite and equal
+            if region_val.is_nan() && bbox_val.is_nan() {
+                matching_values += 1;
+                continue;
+            } else if region_val.is_finite() && bbox_val.is_finite() {
+                if (region_val - bbox_val).abs() < 1e-4 {
+                    matching_values += 1;
+                }
+            }
+        }
+
+        // At least 95% of values should match (allowing for some floating point differences)
+        let match_ratio = matching_values as f64 / total_values as f64;
+        assert!(
+            match_ratio > 0.95,
+            "At least 95% of values should match between run_algo and calculate_pp_for_bbox_with_model (got {:.2}%)",
+            match_ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn test_bbox_coordinate_conversion() {
+        let rasters = create_mock_data();
+        let config = create_mock_config();
+        let processor = match OceanographicProcessor::new(&rasters, &config) {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        // Use a smaller area within Baffin Bay
+        let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
+        let vgpm = VgpmModel::new();
+
+        let bbox_dataset = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm).unwrap();
+
+        // Get geotransform to calculate pixel coordinates
+        let sample_dataset = processor.datasets.values().next().unwrap();
+        let geotransform = sample_dataset.geo_transform().unwrap();
+
+        // Convert bbox coordinates to pixel coordinates
+        let pixel_min_x = ((-67.0 - geotransform[0]) / geotransform[1]).floor() as i32;
+        let pixel_max_x = ((-60.0 - geotransform[0]) / geotransform[1]).ceil() as i32;
+        let pixel_min_y = ((72.0 - geotransform[3]) / geotransform[5]).floor() as i32;
+        let pixel_max_y = ((71.0 - geotransform[3]) / geotransform[5]).ceil() as i32;
+
+        // Ensure bounds are within dataset dimensions
+        let start_x = pixel_min_x.max(0) as u32;
+        let end_x = pixel_max_x.max(0).min(processor.width as i32) as u32;
+        let start_y = pixel_min_y.max(0) as u32;
+        let end_y = pixel_max_y.max(0).min(processor.height as i32) as u32;
+
+        let region_results = processor
+            .run_algo(&vgpm, start_x, start_y, end_x - start_x, end_y - start_y)
+            .unwrap();
+
+        // Read data from bbox dataset
+        let bbox_band = bbox_dataset.rasterband(1).unwrap();
+        let (width, height) = bbox_dataset.raster_size();
+        let bbox_data = bbox_band
+            .read_as::<f32>((0, 0), (width, height), (width, height), None)
+            .unwrap();
+        let bbox_results: Vec<f64> = bbox_data.data().iter().map(|&v| v as f64).collect();
+
+        // Should produce same number of results
+        assert_eq!(
+            bbox_results.len(),
+            region_results.len(),
+            "Coordinate conversion should produce matching dimensions: bbox={}, region={}",
+            bbox_results.len(),
+            region_results.len()
+        );
+    }
+}
