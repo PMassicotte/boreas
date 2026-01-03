@@ -75,3 +75,144 @@ pub trait PrimaryProduction {
     #[allow(dead_code)]
     fn required_datasets(&self) -> Vec<DatasetType>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_name_config_names() {
+        // Test all dataset names used in config files can be successfully parsed
+        assert_eq!(
+            DatasetType::from_name("rrs_443"),
+            Some(DatasetType::Rrs443)
+        );
+        assert_eq!(
+            DatasetType::from_name("rrs_488"),
+            Some(DatasetType::Rrs488)
+        );
+        assert_eq!(
+            DatasetType::from_name("rrs_555"),
+            Some(DatasetType::Rrs555)
+        );
+        assert_eq!(
+            DatasetType::from_name("kd_490"),
+            Some(DatasetType::Kd490)
+        );
+        assert_eq!(DatasetType::from_name("sst"), Some(DatasetType::SeaSurfaceTemperature));
+        assert_eq!(
+            DatasetType::from_name("chlor_a"),
+            Some(DatasetType::Chlorophyll)
+        );
+    }
+
+    #[test]
+    fn test_from_name_all_aliases() {
+        // Test chlorophyll aliases
+        assert_eq!(
+            DatasetType::from_name("chl_a"),
+            Some(DatasetType::Chlorophyll)
+        );
+        assert_eq!(
+            DatasetType::from_name("chlor_a"),
+            Some(DatasetType::Chlorophyll)
+        );
+        assert_eq!(
+            DatasetType::from_name("chlorophyll"),
+            Some(DatasetType::Chlorophyll)
+        );
+
+        // Test SST aliases
+        assert_eq!(
+            DatasetType::from_name("sst"),
+            Some(DatasetType::SeaSurfaceTemperature)
+        );
+        assert_eq!(
+            DatasetType::from_name("sea_surface_temperature"),
+            Some(DatasetType::SeaSurfaceTemperature)
+        );
+
+        // Test PAR aliases
+        assert_eq!(
+            DatasetType::from_name("par"),
+            Some(DatasetType::PhotosyntheticallyActiveRadiation)
+        );
+        assert_eq!(
+            DatasetType::from_name("photosynthetically_active_radiation"),
+            Some(DatasetType::PhotosyntheticallyActiveRadiation)
+        );
+
+        // Test Kd490 aliases
+        assert_eq!(DatasetType::from_name("kd_490"), Some(DatasetType::Kd490));
+        assert_eq!(DatasetType::from_name("kd490"), Some(DatasetType::Kd490));
+
+        // Test RRS aliases
+        assert_eq!(DatasetType::from_name("rrs_443"), Some(DatasetType::Rrs443));
+        assert_eq!(DatasetType::from_name("rrs443"), Some(DatasetType::Rrs443));
+        assert_eq!(DatasetType::from_name("rrs_488"), Some(DatasetType::Rrs488));
+        assert_eq!(DatasetType::from_name("rrs488"), Some(DatasetType::Rrs488));
+        assert_eq!(DatasetType::from_name("rrs_555"), Some(DatasetType::Rrs555));
+        assert_eq!(DatasetType::from_name("rrs555"), Some(DatasetType::Rrs555));
+    }
+
+    #[test]
+    fn test_from_name_case_insensitive() {
+        // Test that case doesn't matter
+        assert_eq!(
+            DatasetType::from_name("CHL_A"),
+            Some(DatasetType::Chlorophyll)
+        );
+        assert_eq!(
+            DatasetType::from_name("CHLOR_A"),
+            Some(DatasetType::Chlorophyll)
+        );
+        assert_eq!(
+            DatasetType::from_name("SST"),
+            Some(DatasetType::SeaSurfaceTemperature)
+        );
+        assert_eq!(
+            DatasetType::from_name("RRS_443"),
+            Some(DatasetType::Rrs443)
+        );
+        assert_eq!(
+            DatasetType::from_name("Kd_490"),
+            Some(DatasetType::Kd490)
+        );
+    }
+
+    #[test]
+    fn test_from_name_invalid() {
+        // Test that unrecognized names return None
+        assert_eq!(DatasetType::from_name("invalid"), None);
+        assert_eq!(DatasetType::from_name("unknown_dataset"), None);
+        assert_eq!(DatasetType::from_name(""), None);
+        assert_eq!(DatasetType::from_name("rrs_999"), None);
+        assert_eq!(DatasetType::from_name("temperature"), None);
+    }
+
+    #[test]
+    fn test_config_name_roundtrip() {
+        // Test that config_name returns values that can be parsed back
+        let dataset_types = vec![
+            DatasetType::Chlorophyll,
+            DatasetType::SeaSurfaceTemperature,
+            DatasetType::PhotosyntheticallyActiveRadiation,
+            DatasetType::Kd490,
+            DatasetType::Rrs443,
+            DatasetType::Rrs488,
+            DatasetType::Rrs555,
+        ];
+
+        for dataset_type in dataset_types {
+            let config_name = dataset_type.config_name();
+            let parsed = DatasetType::from_name(config_name);
+            assert_eq!(
+                parsed,
+                Some(dataset_type),
+                "Failed to parse config_name '{}' back to {:?}",
+                config_name,
+                dataset_type
+            );
+        }
+    }
+}
