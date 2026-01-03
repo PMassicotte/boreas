@@ -192,7 +192,13 @@ impl<'a> BatchRunner<'a> {
             let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
 
             // Generate output filename using the corresponding date
-            let date = dates.get(index).unwrap_or(&dates[0]); // Fallback to first date if index out of bounds
+            let date = dates.get(index).ok_or_else(|| {
+                BoreasError::Config(format!(
+                    "Date index {} out of bounds for output filename generation",
+                    index
+                ))
+            })?;
+
             let date_str = date.format("%Y%m%d").to_string();
             let filename = format!(
                 "{}/boreas_daily_primary_production_{}_{}.tif",
