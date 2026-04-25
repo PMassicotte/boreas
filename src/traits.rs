@@ -83,23 +83,14 @@ mod tests {
     #[test]
     fn test_from_name_config_names() {
         // Test all dataset names used in config files can be successfully parsed
+        assert_eq!(DatasetType::from_name("rrs_443"), Some(DatasetType::Rrs443));
+        assert_eq!(DatasetType::from_name("rrs_488"), Some(DatasetType::Rrs488));
+        assert_eq!(DatasetType::from_name("rrs_555"), Some(DatasetType::Rrs555));
+        assert_eq!(DatasetType::from_name("kd_490"), Some(DatasetType::Kd490));
         assert_eq!(
-            DatasetType::from_name("rrs_443"),
-            Some(DatasetType::Rrs443)
+            DatasetType::from_name("sst"),
+            Some(DatasetType::SeaSurfaceTemperature)
         );
-        assert_eq!(
-            DatasetType::from_name("rrs_488"),
-            Some(DatasetType::Rrs488)
-        );
-        assert_eq!(
-            DatasetType::from_name("rrs_555"),
-            Some(DatasetType::Rrs555)
-        );
-        assert_eq!(
-            DatasetType::from_name("kd_490"),
-            Some(DatasetType::Kd490)
-        );
-        assert_eq!(DatasetType::from_name("sst"), Some(DatasetType::SeaSurfaceTemperature));
         assert_eq!(
             DatasetType::from_name("chlor_a"),
             Some(DatasetType::Chlorophyll)
@@ -170,14 +161,8 @@ mod tests {
             DatasetType::from_name("SST"),
             Some(DatasetType::SeaSurfaceTemperature)
         );
-        assert_eq!(
-            DatasetType::from_name("RRS_443"),
-            Some(DatasetType::Rrs443)
-        );
-        assert_eq!(
-            DatasetType::from_name("Kd_490"),
-            Some(DatasetType::Kd490)
-        );
+        assert_eq!(DatasetType::from_name("RRS_443"), Some(DatasetType::Rrs443));
+        assert_eq!(DatasetType::from_name("Kd_490"), Some(DatasetType::Kd490));
     }
 
     #[test]
