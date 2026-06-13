@@ -45,6 +45,7 @@
         buildInputs = with pkgs; [
           gdal
           openssl
+          proj
         ];
 
         # Environment variables needed for bindgen (used by gdal-sys)

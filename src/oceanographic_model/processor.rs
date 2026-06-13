@@ -21,12 +21,8 @@ impl SpatialRegion {
         dataset_width: u32,
         dataset_height: u32,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let Bbox {
-            xmin: min_lon,
-            xmax: max_lon,
-            ymin: min_lat,
-            ymax: max_lat,
-        } = bbox;
+        let (min_lon, max_lon, min_lat, max_lat) =
+            (bbox.xmin(), bbox.xmax(), bbox.ymin(), bbox.ymax());
 
         // Convert geographic coordinates to pixel coordinates
         let pixel_min_x = ((min_lon - geotransform[0]) / geotransform[1]).floor() as i32;
