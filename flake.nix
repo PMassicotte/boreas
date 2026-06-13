@@ -7,14 +7,26 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
 
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          extensions = [ "rust-src" "rust-analyzer" "rustfmt" "clippy" ];
+          extensions = [
+            "rust-src"
+            "rust-analyzer"
+            "rustfmt"
+            "clippy"
+          ];
         };
 
         # Native build inputs required for gdal-sys
@@ -30,12 +42,16 @@
         ];
 
         # Runtime dependencies
-        buildInputs = with pkgs; [ gdal openssl ];
+        buildInputs = with pkgs; [
+          gdal
+          openssl
+        ];
 
         # Environment variables needed for bindgen (used by gdal-sys)
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-      in {
+      in
+      {
         devShells.default = pkgs.mkShell {
           inherit buildInputs nativeBuildInputs LIBCLANG_PATH;
 
@@ -52,10 +68,12 @@
           version = "0.1.0";
           src = ./.;
 
-          cargoLock = { lockFile = ./Cargo.lock; };
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+          };
 
           inherit nativeBuildInputs buildInputs LIBCLANG_PATH;
         };
-      });
+      }
+    );
 }
-
