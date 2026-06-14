@@ -1,0 +1,5 @@
+---
+source: src/bbox.rs
+expression: "format!(\"xmin={:.2} xmax={:.2} ymin={:.2} ymax={:.2}\", projected.xmin(),\nprojected.xmax(), projected.ymin(), projected.ymax())"
+---
+xmin=-788817.27 xmax=-431401.66 ymin=-1932937.72 ymax=-1769680.74

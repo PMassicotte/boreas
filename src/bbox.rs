@@ -103,4 +103,17 @@ mod test {
         assert_eq!(bbox.ymin(), 70.9);
         assert_eq!(bbox.ymax(), 73.3);
     }
+
+    #[test]
+    fn test_projection_epsg3411() {
+        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
+        let projected = bbox.transform_to_crs("EPSG:3411").unwrap();
+        insta::assert_snapshot!(format!(
+            "xmin={:.2} xmax={:.2} ymin={:.2} ymax={:.2}",
+            projected.xmin(),
+            projected.xmax(),
+            projected.ymin(),
+            projected.ymax()
+        ));
+    }
 }
