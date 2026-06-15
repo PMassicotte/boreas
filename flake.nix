@@ -39,6 +39,7 @@
           cargo-edit
           cargo-watch
           cargo-expand
+          cargo-nextest
         ];
 
         # Runtime dependencies
