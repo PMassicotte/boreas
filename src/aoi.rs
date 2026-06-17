@@ -8,11 +8,11 @@ use geo_types::{Coord, LineString, MultiPolygon, Polygon};
 
 pub enum Aoi {
     Bbox(Bbox),
-    Polygon(PolybonAoi),
+    Polygon(PolygonAoi),
 }
 
 #[derive(Debug)]
-pub struct PolybonAoi {
+pub struct PolygonAoi {
     geometry: MultiPolygon<f64>,
     envelope: Bbox,
 }
@@ -26,7 +26,7 @@ impl Aoi {
     }
 }
 
-impl PolybonAoi {
+impl PolygonAoi {
     pub fn from_file(
         path: &str,
         layer_name: Option<&str>,
@@ -129,10 +129,10 @@ mod test {
     fn test_shape_import_baffin_bay() {
         let path = "./data/baffin_bay.gpkg";
 
-        let poly1 = PolybonAoi::from_file(path, None).unwrap();
+        let poly1 = PolygonAoi::from_file(path, None).unwrap();
         insta::assert_debug_snapshot!("no_layer_name", poly1);
 
-        let poly2 = PolybonAoi::from_file(path, Some("baffin_bay")).unwrap();
+        let poly2 = PolygonAoi::from_file(path, Some("baffin_bay")).unwrap();
         insta::assert_debug_snapshot!("with_layer_name", poly2);
 
         assert_eq!(poly1.geometry, poly2.geometry);
