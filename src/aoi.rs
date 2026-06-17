@@ -1,8 +1,8 @@
 use crate::bbox::Bbox;
 use gdal::spatial_ref::{AxisMappingStrategy, CoordTransform, SpatialRef};
 use gdal::vector::{Geometry, LayerAccess, OGRwkbGeometryType};
-use geo::BoundingRect;
-use geo_types::{Coord, LineString, MultiPolygon, Polygon};
+use geo::{BoundingRect, Contains};
+use geo_types::{Coord, LineString, MultiPolygon, Point, Polygon};
 
 pub enum Aoi {
     Bbox(Bbox),
@@ -20,6 +20,39 @@ impl Aoi {
         match self {
             Aoi::Bbox(b) => b,
             Aoi::Polygon(b) => &b.envelope,
+        }
+    }
+
+    pub fn mask(
+        &self,
+        geotransform: &[f64; 6],
+        start_x: u32,
+        start_y: u32,
+        width: u32,
+        height: u32,
+    ) -> Vec<bool> {
+        match self {
+            // bbox: every pixel in the window is kept. All pixels set to true.
+            Aoi::Bbox(_) => vec![true; (width * height) as usize],
+
+            Aoi::Polygon(p) => {
+                let mut mask = Vec::with_capacity((width * height) as usize);
+
+                for row in 0..height {
+                    for col in 0..width {
+                        // Pixel center in raster coordinates. Get the pixel position, and convert
+                        // that into lon/lat
+                        let px = (start_x + col) as f64 + 0.5;
+                        let py = (start_y + row) as f64 + 0.5;
+                        let lon = geotransform[0] + px * geotransform[1] + py * geotransform[2];
+                        let lat = geotransform[3] + px * geotransform[4] + py * geotransform[5];
+
+                        mask.push(p.geometry.contains(&Point::new(lon, lat)));
+                    }
+                }
+
+                mask
+            }
         }
     }
 }
