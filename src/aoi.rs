@@ -31,10 +31,6 @@ impl PolygonAoi {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let dataset = gdal::Dataset::open(path)?;
 
-        for layer in dataset.layers() {
-            println!("Layer: {:?}", layer.name());
-        }
-
         let mut layer = match layer_name {
             Some(name) => dataset.layer_by_name(name)?,
             None => dataset.layer(0)?,
