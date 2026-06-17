@@ -1,5 +1,3 @@
-use std::cmp;
-
 use crate::bbox::Bbox;
 use gdal::spatial_ref::{AxisMappingStrategy, CoordTransform, SpatialRef};
 use gdal::vector::{Geometry, LayerAccess, OGRwkbGeometryType};
