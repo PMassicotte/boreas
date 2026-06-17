@@ -1,15 +1,16 @@
 use crate::bbox::Bbox;
 use gdal::spatial_ref::{AxisMappingStrategy, CoordTransform, SpatialRef};
 use gdal::vector::{Geometry, LayerAccess, OGRwkbGeometryType};
-use geo::{BoundingRect, Contains};
-use geo_types::{Coord, LineString, MultiPolygon, Point, Polygon};
+use geo::BoundingRect;
+use geo_types::{Coord, LineString, MultiPolygon, Polygon};
 
+#[derive(Debug, Clone)]
 pub enum Aoi {
     Bbox(Bbox),
     Polygon(PolygonAoi),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PolygonAoi {
     geometry: MultiPolygon<f64>,
     envelope: Bbox,
@@ -36,18 +37,48 @@ impl Aoi {
             Aoi::Bbox(_) => vec![true; (width * height) as usize],
 
             Aoi::Polygon(p) => {
-                let mut mask = Vec::with_capacity((width * height) as usize);
+                // Scanline point-in-polygon. Every output row is a single constant-latitude
+                // line, so we compute the polygon's longitude crossings once per row (even-odd
+                // rule, which handles holes and multiple polygons), then fill the row — instead
+                // of testing each of the ~tens-of-thousands of edges against every pixel.
+                //
+                // This assumes a north-up geotransform (no rotation terms), which is the case
+                // for the WGS84 lon/lat rasters used here.
+                debug_assert!(
+                    geotransform[2] == 0.0 && geotransform[4] == 0.0,
+                    "mask() scanline assumes a north-up (unrotated) geotransform"
+                );
+
+                let mut mask = vec![false; (width * height) as usize];
+                let mut crossings: Vec<f64> = Vec::new();
 
                 for row in 0..height {
-                    for col in 0..width {
-                        // Pixel center in raster coordinates. Get the pixel position, and convert
-                        // that into lon/lat
-                        let px = (start_x + col) as f64 + 0.5;
-                        let py = (start_y + row) as f64 + 0.5;
-                        let lon = geotransform[0] + px * geotransform[1] + py * geotransform[2];
-                        let lat = geotransform[3] + px * geotransform[4] + py * geotransform[5];
+                    let py = (start_y + row) as f64 + 0.5;
+                    let lat = geotransform[3] + py * geotransform[5];
 
-                        mask.push(p.geometry.contains(&Point::new(lon, lat)));
+                    // Longitudes where the polygon boundary crosses this row's latitude.
+                    crossings.clear();
+                    for poly in p.geometry.iter() {
+                        for ring in std::iter::once(poly.exterior()).chain(poly.interiors()) {
+                            for edge in ring.0.windows(2) {
+                                let (a, b) = (edge[0], edge[1]);
+                                // Half-open test so a shared vertex is counted once.
+                                if (a.y > lat) != (b.y > lat) {
+                                    let t = (lat - a.y) / (b.y - a.y);
+                                    crossings.push(a.x + t * (b.x - a.x));
+                                }
+                            }
+                        }
+                    }
+                    crossings.sort_by(|a, b| a.total_cmp(b));
+
+                    // A pixel is inside when an odd number of crossings lie to its left.
+                    let row_off = (row * width) as usize;
+                    for col in 0..width {
+                        let px = (start_x + col) as f64 + 0.5;
+                        let lon = geotransform[0] + px * geotransform[1];
+                        let left = crossings.partition_point(|&x| x < lon);
+                        mask[row_off + col as usize] = left % 2 == 1;
                     }
                 }
 

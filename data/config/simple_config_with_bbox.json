@@ -1,0 +1,61 @@
+{
+  "$schema": "./simple_config.schema.json",
+  "model_id": "example_model",
+  "start_date": "2024-07-01",
+  "end_date": "2024-08-01",
+  "frequency": "monthly",
+  "hourly_increment": 4,
+  "output_directory": "./output",
+  "algorithm": "vgpm",
+  "aoi": {
+    "type": "bbox",
+    "xmin": -180.0,
+    "xmax": 180.0,
+    "ymin": 45.0,
+    "ymax": 90.0
+  },
+  "raster_templates": [
+    {
+      "name": "rrs_443",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.RRS.Rrs_443.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "Rrs_443"
+    },
+    {
+      "name": "rrs_488",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.RRS.Rrs_488.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "Rrs_488"
+    },
+    {
+      "name": "rrs_555",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.RRS.Rrs_555.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "Rrs_555"
+    },
+    {
+      "name": "kd_490",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.KD.Kd_490.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "Kd_490"
+    },
+    {
+      "name": "sst",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.SST.sst.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "sst"
+    },
+    {
+      "name": "chlor_a",
+      "base_directory": "./data/nc/files/",
+      "filename_pattern": "AQUA_MODIS.{}_*.L3m.MO.CHL.chlor_a.4km.nc",
+      "date_format": "YYYYMMDD",
+      "layer_name": "chlor_a"
+    }
+  ]
+}

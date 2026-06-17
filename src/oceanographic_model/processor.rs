@@ -1,8 +1,9 @@
-use crate::bbox::Bbox;
+use crate::aoi::Aoi;
 use crate::config::Config;
 use crate::error::BoreasError;
 use crate::traits::{DatasetType, PrimaryProduction};
 use gdal::{Dataset, Metadata};
+use std::f32;
 use std::{collections::HashMap, fmt::Display, path::Path};
 use uuid::Uuid;
 
@@ -16,11 +17,13 @@ struct SpatialRegion {
 
 impl SpatialRegion {
     fn new(
-        bbox: &Bbox,
+        aoi: &Aoi,
         geotransform: &[f64; 6],
         dataset_width: u32,
         dataset_height: u32,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        let bbox = aoi.bounding_box();
+
         let (min_lon, max_lon, min_lat, max_lat) =
             (bbox.xmin(), bbox.xmax(), bbox.ymin(), bbox.ymax());
 
@@ -222,9 +225,9 @@ impl OceanographicProcessor {
     }
 
     /// Calculate PP for a geographic bounding box using a trait-based model
-    pub fn calculate_pp_for_bbox_with_model(
+    pub fn calculate_pp_for_aoi(
         &self,
-        bbox: &Bbox,
+        aoi: &Aoi,
         algo: &dyn PrimaryProduction,
     ) -> Result<Dataset, Box<dyn std::error::Error>> {
         // Get geotransform from one of the datasets (assuming all have same geotransform). This
@@ -232,7 +235,7 @@ impl OceanographicProcessor {
         let sample_dataset = self.datasets.values().next().ok_or("No datasets loaded")?;
         let geotransform = sample_dataset.geo_transform()?;
 
-        let spatial_region = SpatialRegion::new(bbox, &geotransform, self.width, self.height)?;
+        let spatial_region = SpatialRegion::new(aoi, &geotransform, self.width, self.height)?;
 
         // Calculate PP using the trait-based model
         let pp_values_f64 = self.run_algo(
@@ -243,8 +246,19 @@ impl OceanographicProcessor {
             spatial_region.output_height,
         )?;
 
-        // Convert f64 to f32 for the output dataset
-        let pp_values: Vec<f32> = pp_values_f64.iter().map(|&v| v as f32).collect();
+        let mask = aoi.mask(
+            &geotransform,
+            spatial_region.start_x,
+            spatial_region.start_y,
+            spatial_region.output_width,
+            spatial_region.output_height,
+        );
+
+        let pp_values: Vec<f32> = pp_values_f64
+            .iter()
+            .zip(&mask)
+            .map(|(&v, &inside)| if inside { v as f32 } else { f32::NAN })
+            .collect();
 
         spatial_region.create_output_dataset(sample_dataset, pp_values)
     }
@@ -286,7 +300,8 @@ mod tests {
             "frequency": "monthly",
             "hourly_increment": 4,
             "output_directory": "{}",
-            "bbox": {{
+            "aoi": {{
+                "type": "bbox",
                 "xmin": -67.2,
                 "xmax": -58.7,
                 "ymin": 70.9,
@@ -391,11 +406,11 @@ mod tests {
         };
 
         // Use Baffin Bay coordinates
-        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
+        let aoi = Aoi::Bbox(Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap());
         let vgpm = VgpmModel::new();
 
         // Calculate PP using bbox method
-        let result = processor.calculate_pp_for_bbox_with_model(&bbox, &vgpm);
+        let result = processor.calculate_pp_for_aoi(&aoi, &vgpm);
 
         assert!(
             result.is_ok(),
@@ -422,13 +437,11 @@ mod tests {
         };
 
         // Use Baffin Bay coordinates
-        let bbox = Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap();
+        let aoi = Aoi::Bbox(Bbox::new(-67.2, -58.7, 70.9, 73.3).unwrap());
         let vgpm = VgpmModel::new();
 
         // Calculate PP using bbox method
-        let bbox_dataset = processor
-            .calculate_pp_for_bbox_with_model(&bbox, &vgpm)
-            .unwrap();
+        let bbox_dataset = processor.calculate_pp_for_aoi(&aoi, &vgpm).unwrap();
 
         // Get geotransform to calculate pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();
@@ -503,12 +516,10 @@ mod tests {
         };
 
         // Use a smaller area within Baffin Bay
-        let bbox = Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap();
+        let aoi = Aoi::Bbox(Bbox::new(-67.0, -60.0, 71.0, 72.0).unwrap());
         let vgpm = VgpmModel::new();
 
-        let bbox_dataset = processor
-            .calculate_pp_for_bbox_with_model(&bbox, &vgpm)
-            .unwrap();
+        let bbox_dataset = processor.calculate_pp_for_aoi(&aoi, &vgpm).unwrap();
 
         // Get geotransform to calculate pixel coordinates
         let sample_dataset = processor.datasets.values().next().unwrap();

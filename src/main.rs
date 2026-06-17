@@ -26,7 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Starting oceanographic primary production processing...".bright_yellow()
     );
 
-    let config = Config::from_file("./data/config/simple_config.json").unwrap();
+    // let config = Config::from_file("./data/config/simple_config_with_bbox.json").unwrap();
+    let config = Config::from_file("./data/config/simple_config_with_polygon.json").unwrap();
 
     // Select algorithm from config
     let model: Box<dyn PrimaryProduction> = match config.algorithm.as_str() {

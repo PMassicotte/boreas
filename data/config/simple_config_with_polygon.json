@@ -7,11 +7,9 @@
   "hourly_increment": 4,
   "output_directory": "./output",
   "algorithm": "vgpm",
-  "bbox": {
-    "xmin": -67.2,
-    "xmax": -58.7,
-    "ymin": 70.9,
-    "ymax": 73.3
+  "aoi": {
+    "type": "polygon",
+    "path": "./data/baffin_bay.gpkg"
   },
   "raster_templates": [
     {

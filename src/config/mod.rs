@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::aoi::PolygonAoi;
 use chrono::{Duration, Months, NaiveDate};
 
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
+use crate::aoi::Aoi;
 use crate::bbox::Bbox;
 
 pub mod error;
@@ -34,7 +36,7 @@ pub struct Config {
     pub end_date: NaiveDate,
     frequency: TimeStep,
     hourly_increment: u8,
-    pub bbox: Bbox,
+    pub aoi: Aoi,
     raster_templates: Vec<RasterFile>,
     output_directory: String,
 }
@@ -61,16 +63,8 @@ impl<'de> Deserialize<'de> for Config {
             frequency: TimeStep,
             hourly_increment: u8,
             raster_templates: Vec<RasterFile>,
-            bbox: BboxHelper,
+            aoi: AoiHelper,
             output_directory: String,
-        }
-
-        #[derive(Deserialize)]
-        struct BboxHelper {
-            xmin: f64,
-            xmax: f64,
-            ymin: f64,
-            ymax: f64,
         }
 
         // Deserialize into the helper struct
@@ -142,13 +136,7 @@ impl<'de> Deserialize<'de> for Config {
         }
 
         // Validate bbox
-        let bbox = Bbox::new(
-            helper.bbox.xmin,
-            helper.bbox.xmax,
-            helper.bbox.ymin,
-            helper.bbox.ymax,
-        )
-        .map_err(|e| D::Error::custom(format!("Invalid bbox: {}", e)))?;
+        let aoi = helper.aoi.into_aoi().map_err(D::Error::custom)?;
 
         // Validate output directory exists
         if !Path::new(&helper.output_directory).exists() {
@@ -165,9 +153,42 @@ impl<'de> Deserialize<'de> for Config {
             frequency: helper.frequency,
             hourly_increment: helper.hourly_increment,
             raster_templates: helper.raster_templates,
-            bbox,
+            aoi,
             output_directory: helper.output_directory,
         })
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum AoiHelper {
+    Bbox {
+        xmin: f64,
+        xmax: f64,
+        ymin: f64,
+        ymax: f64,
+    },
+    Polygon {
+        path: String,
+        #[serde(default)]
+        layer: Option<String>,
+    },
+}
+
+impl AoiHelper {
+    fn into_aoi(self) -> Result<Aoi, Box<dyn std::error::Error>> {
+        match self {
+            AoiHelper::Bbox {
+                xmin,
+                xmax,
+                ymin,
+                ymax,
+            } => Ok(Aoi::Bbox(Bbox::new(xmin, xmax, ymin, ymax)?)),
+            AoiHelper::Polygon { path, layer } => Ok(Aoi::Polygon(PolygonAoi::from_file(
+                &path,
+                layer.as_deref(),
+            )?)),
+        }
     }
 }
 
@@ -189,8 +210,8 @@ impl Config {
         &self.raster_templates
     }
 
-    pub fn bbox(&self) -> &Bbox {
-        &self.bbox
+    pub fn aoi(&self) -> &Aoi {
+        &self.aoi
     }
 
     pub fn output_directory(&self) -> &String {
@@ -256,7 +277,8 @@ mod tests {
         "frequency": "daily",
         "hourly_increment": 3,
         "raster_templates": [],
-        "bbox": {
+        "aoi": {
+            "type": "bbox",
             "xmin": 0.0,
             "xmax": 1.0,
             "ymin": 0.0,
@@ -336,7 +358,7 @@ mod tests {
             frequency: TimeStep::Daily,
             hourly_increment: 3,
             raster_templates: vec![],
-            bbox: Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap(),
+            aoi: Aoi::Bbox(Bbox::new(0.0, 1.0, 0.0, 1.0).unwrap()),
             output_directory: "/tmp".to_string(),
         };
 

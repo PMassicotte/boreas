@@ -64,7 +64,8 @@ mod tests {
             "frequency": "daily",
             "hourly_increment": 6,
             "raster_templates": [],
-            "bbox": {
+            "aoi": {
+                "type": "bbox",
                 "xmin": 0.0,
                 "xmax": 1.0,
                 "ymin": 0.0,

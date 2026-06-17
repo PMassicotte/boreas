@@ -191,8 +191,8 @@ impl<'a> BatchRunner<'a> {
         // For each date, calculate pp using the specified algorithm
         for (raster_dataset, date) in self.dataset_collection.iter().zip(&dates) {
             let proc = OceanographicProcessor::new(raster_dataset, self.config)?;
-            let bbox = self.config.bbox();
-            let dataset = proc.calculate_pp_for_bbox_with_model(bbox, algo)?;
+            let aoi = self.config.aoi();
+            let dataset = proc.calculate_pp_for_aoi(aoi, algo)?;
 
             // Generate output filename using the corresponding date
             let date_str = date.format("%Y%m%d").to_string();

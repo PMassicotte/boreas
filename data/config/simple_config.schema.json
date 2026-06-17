@@ -10,7 +10,7 @@
     "hourly_increment",
     "output_directory",
     "algorithm",
-    "bbox",
+    "aoi",
     "raster_templates"
   ],
   "properties": {
@@ -59,36 +59,59 @@
       "enum": ["vgpm", "cbpm"],
       "description": "Algorithm to be used for processing"
     },
-    "bbox": {
+    "aoi": {
       "type": "object",
-      "required": ["xmin", "xmax", "ymin", "ymax"],
-      "properties": {
-        "xmin": {
-          "type": "number",
-          "minimum": -180,
-          "maximum": 180,
-          "description": "Minimum longitude"
+      "description": "Area of interest: a bounding box (type: bbox) or a polygon from a vector file (type: polygon)",
+      "oneOf": [
+        {
+          "required": ["type", "xmin", "xmax", "ymin", "ymax"],
+          "properties": {
+            "type": { "const": "bbox" },
+            "xmin": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180,
+              "description": "Minimum longitude"
+            },
+            "xmax": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180,
+              "description": "Maximum longitude"
+            },
+            "ymin": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90,
+              "description": "Minimum latitude"
+            },
+            "ymax": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90,
+              "description": "Maximum latitude"
+            }
+          },
+          "additionalProperties": false
         },
-        "xmax": {
-          "type": "number",
-          "minimum": -180,
-          "maximum": 180,
-          "description": "Maximum longitude"
-        },
-        "ymin": {
-          "type": "number",
-          "minimum": -90,
-          "maximum": 90,
-          "description": "Minimum latitude"
-        },
-        "ymax": {
-          "type": "number",
-          "minimum": -90,
-          "maximum": 90,
-          "description": "Maximum latitude"
+        {
+          "required": ["type", "path"],
+          "properties": {
+            "type": { "const": "polygon" },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Path to a vector file (shapefile / GeoPackage / GeoParquet), relative to the config file"
+            },
+            "layer": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Optional layer name; defaults to the first layer"
+            }
+          },
+          "additionalProperties": false
         }
-      },
-      "additionalProperties": false
+      ]
     },
     "raster_templates": {
       "type": "array",
