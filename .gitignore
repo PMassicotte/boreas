@@ -3,3 +3,7 @@ output
 data/nc/files
 data/geotiff/
 .direnv
+
+# insta: pending snapshots (accepted *.snap files are committed)
+*.snap.new
+*.pending-snap

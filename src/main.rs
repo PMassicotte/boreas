@@ -1,3 +1,4 @@
+mod aoi;
 mod bbox;
 mod config;
 mod date_gen;

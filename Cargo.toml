@@ -7,8 +7,8 @@ edition = "2024"
 chrono = { version = "0.4.45", features = ["serde"] }
 colored = "3.1.1"
 gdal = { version = "0.19.0", features = ["bindgen"] }
+geo = "0.33.1"
 geo-types = "0.7"
-insta = "1.48.0"
 proj = { version = "0.31", features = ["geo-types"] }
 regex = "1.12.4"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -17,3 +17,6 @@ tempfile = "3.27.0"
 thiserror = "2.0"
 uuid = { version = "1.23", features = ["v4"] }
 walkdir = "2.5.0"
+
+[dev-dependencies]
+insta = "1.48.0"
