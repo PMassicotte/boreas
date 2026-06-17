@@ -40,13 +40,12 @@ impl PolygonAoi {
 
         let mut polygons: Vec<geo_types::Polygon<f64>> = Vec::new();
 
+        let mut wgs84 = SpatialRef::from_epsg(4326)?;
+        // Force x=lon, y=lat output (otherwise GDAL 3+ returns lat,lon for EPSG:4326).
+        wgs84.set_axis_mapping_strategy(AxisMappingStrategy::TraditionalGisOrder);
+
         for feature in layer.features() {
             if let Some(geom) = feature.geometry() {
-                let mut wgs84 = SpatialRef::from_epsg(4326)?;
-
-                // Force x=lon, y=lat output (otherwise GDAL 3+ returns lat,lon for EPSG:4326).
-                wgs84.set_axis_mapping_strategy(AxisMappingStrategy::TraditionalGisOrder);
-
                 let geom_wgs84: Geometry = match layer_csr.as_ref() {
                     Some(src) => {
                         let mut src = src.clone();
